@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Python</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Fraunces:opsz,wght@9..144,600;9..144,700&amp;display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #17324d;
+      --navy: #102a43;
+      --blue: #2b70c9;
+      --yellow: #ffd34e;
+      --mist: #eef6fb;
+      --paper: #fffdf8;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      width: 100%;
+      font-family: "DM Sans", sans-serif;
+      color: var(--ink);
+      overflow-x: hidden;
+    }
+
+    .page-shell { width: 100%; min-height: 100%; }
+    .content-width { width: min(1120px, calc(100% - 3rem)); margin: 0 auto; }
+
+    .python-mark {
+      width: 38px;
+      height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #3776ab 0%, #3776ab 49%, #ffd343 50%, #ffd343 100%);
+      box-shadow: 0 8px 18px rgba(35, 82, 128, 0.18);
+    }
+
+    .python-mark svg { color: #fff; width: 21px; height: 21px; stroke-width: 2.4; }
+    .hero-grid { display: grid; grid-template-columns: 1.04fr 0.96fr; gap: 4rem; align-items: center; }
+    .hero-title { font-family: "Fraunces", serif; letter-spacing: -0.045em; }
+    .section-title { font-family: "Fraunces", serif; letter-spacing: -0.035em; }
+    .soft-orb { position: absolute; border-radius: 999px; pointer-events: none; }
+    .hero-visual { position: relative; }
+    .photo-frame {
+      position: relative;
+      overflow: hidden;
+      border-radius: 28px;
+      transform: rotate(2deg);
+      box-shadow: 0 24px 54px rgba(16, 42, 67, 0.18);
+    }
+    .photo-frame img { display: block; width: 100%; height: 410px; object-fit: cover; }
+    .code-note {
+      position: absolute;
+      left: -26px;
+      bottom: 28px;
+      width: 220px;
+      padding: 1.05rem 1.15rem;
+      border-radius: 16px;
+      background: #102a43;
+      color: #f7fbff;
+      box-shadow: 0 16px 30px rgba(16, 42, 67, 0.25);
+      transform: rotate(-4deg);
+    }
+    .code-note code { font-family: "Space Mono", monospace; font-size: 0.76rem; color: #ffd34e; }
+    .code-note p { margin: 0.4rem 0 0; font-size: 0.8rem; line-height: 1.35; color: #d5e7f4; }
+
+    .pill-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      color: #385671;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .pill-check i { width: 17px; height: 17px; color: #277b5b; }
+
+    .feature-card {
+      border: 1px solid rgba(27, 72, 108, 0.1);
+      border-radius: 18px;
+      padding: 1.65rem;
+      transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+    .feature-card:hover { transform: translateY(-5px); box-shadow: 0 18px 30px rgba(25, 75, 111, 0.11); }
+    .icon-tile {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 13px;
+      margin-bottom: 1.15rem;
+    }
+    .icon-tile i { width: 21px; height: 21px; }
+
+    .step-line { position: relative; }
+    .step-line:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      top: 28px;
+      left: calc(50% + 38px);
+      width: calc(100% - 76px);
+      height: 1px;
+      background: #c8dbe8;
+    }
+    .step-number {
+      width: 56px;
+      height: 56px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-family: "Fraunces", serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+
+    .reveal { animation: rise-in 650ms ease both; }
+    .delay-1 { animation-delay: 90ms; }
+    .delay-2 { animation-delay: 180ms; }
+    .delay-3 { animation-delay: 270ms; }
+    @keyframes rise-in {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    a:focus-visible, button:focus-visible {
+      outline: 3px solid #f0ad24;
+      outline-offset: 4px;
+    }
+
+    @media (max-width: 800px) {
+      .content-width { width: min(100% - 2rem, 640px); }
+      .hero-grid { grid-template-columns: 1fr; gap: 2.8rem; }
+      .photo-frame { transform: rotate(0); }
+      .photo-frame img { height: 330px; }
+      .code-note { left: 14px; bottom: -20px; }
+      .step-line:not(:last-child)::after { display: none; }
+    }
+
+    @media (max-width: 540px) {
+      .nav-links { display: none; }
+      .header-action { display: none; }
+      .photo-frame img { height: 280px; }
+      .hero-actions { flex-direction: column; align-items: stretch; }
+      .hero-actions a { text-align: center; }
+    }
+
+ </head>
+ <body data-template-id="__page-root" style="background: rgb(255, 253, 248);">
+  <div class="page-shell">
+   <header class="w-full py-5">
+    <nav class="content-width flex items-center justify-between gap-5" aria-label="Main navigation"><a href="#top" class="flex items-center gap-3 no-underline" aria-label="Python home"> <span class="python-mark" aria-hidden="true"><i data-lucide="terminal-square"></i></span> <span data-template-id="brand-name" class="canva-text font-bold tracking-tight" style="color: rgb(23, 50, 77); font-weight: 700; font-style: normal; font-size: 16px;">Python, made friendly</span> </a>
+     <div class="nav-links flex items-center gap-7"><a data-template-id="nav-why" class="canva-link text-sm font-medium no-underline transition-opacity hover:opacity-65" href="#why" style="color: rgb(56, 86, 113); font-weight: 500; font-style: normal; font-size: 16px;">Why Python?</a> <a data-template-id="nav-path" class="canva-link text-sm font-medium no-underline transition-opacity hover:opacity-65" href="#start" style="color: rgb(56, 86, 113); font-weight: 500; font-style: normal; font-size: 16px;">Your first steps</a>
+     </div><a data-template-id="header-cta" class="header-action canva-button rounded-full px-5 py-2.5 text-sm font-semibold no-underline transition-transform hover:-translate-y-0.5" href="#start" style="background: rgb(23, 50, 77); color: rgb(255, 255, 255); font-weight: 600; font-style: normal; font-size: 16px;">Start learning</a>
+    </nav>
+   </header>
+   <main id="top">
+    <section class="relative w-full overflow-hidden pt-12 pb-24"><span class="soft-orb h-72 w-72 -top-20 -left-24 bg-sky-100 opacity-80"></span> <span class="soft-orb h-56 w-56 top-12 right-0 bg-yellow-100 opacity-80"></span>
+     <div class="content-width hero-grid relative">
+      <div>
+       <p data-template-id="hero-eyebrow" class="canva-tag reveal inline-flex rounded-full px-3 py-1.5 text-sm font-semibold" style="background: rgb(229, 242, 255); color: rgb(36, 104, 165); font-weight: 700; font-style: normal; font-size: 16px;">A warm welcome to Python</p>
+       <h1 data-template-id="hero-title" class="hero-title canva-text reveal delay-1 mt-5 max-w-xl font-semibold leading-[1.04]" style="color: rgb(23, 50, 77); font-weight: 700; font-style: normal; font-size: 32px;">A brilliant first language for curious minds.</h1>
+       <p data-template-id="hero-copy" class="canva-text reveal delay-2 mt-6 max-w-xl text-lg leading-8" style="color: rgb(73, 100, 123); font-weight: 400; font-style: normal; font-size: 18px;">Python is clear, capable, and surprisingly fun to learn. Whether you want to make useful tools, explore data, or simply understand code, you are in the right place.</p>
+       <div class="hero-actions reveal delay-3 mt-8 flex flex-wrap items-center gap-4"><a data-template-id="hero-cta" class="canva-button inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 font-semibold no-underline shadow-lg transition-transform hover:-translate-y-0.5" href="#start" style="background: rgb(55, 118, 171); color: rgb(255, 255, 255);"> <span data-template-id="hero-cta-label" class="canva-text" style="color: rgb(255, 255, 255); font-weight: 700; font-style: normal; font-size: 16px;">Take your first step</span> <i data-lucide="arrow-right" class="h-4 w-4" aria-hidden="true"></i> </a> <a data-template-id="hero-link" class="canva-link inline-flex items-center gap-2 font-semibold no-underline hover:underline" href="#why" style="color: rgb(36, 104, 165); font-weight: 600; font-style: normal; font-size: 16px;">See why beginners love it</a>
+       </div>
+       <div class="mt-9 flex flex-wrap gap-x-6 gap-y-3" aria-label="Learning benefits"><span data-template-id="reassurance-one" class="pill-check canva-text" style="color: rgb(56, 86, 113); font-weight: 500; font-style: normal; font-size: 16px;">No experience needed</span> <span data-template-id="reassurance-two" class="pill-check canva-text" style="color: rgb(56, 86, 113); font-weight: 500; font-style: normal; font-size: 16px;">Learn at your pace</span> <span data-template-id="reassurance-three" class="pill-check canva-text" style="color: rgb(56, 86, 113); font-weight: 500; font-style: normal; font-size: 16px;">Make useful things</span>
+       </div>
+      </div>
+      <div class="hero-visual reveal delay-2">
+       <div class="photo-frame"><img data-template-id="hero-image" class="canva-image" loading="lazy" src="https://images.pexels.com/photos/12899158/pexels-photo-12899158.jpeg" alt="Focused programmer coding on a laptop in an office environment.">
+       </div>
+       <aside class="code-note" aria-label="Python code example"><code>print("Hello, world!")</code>
+        <p data-template-id="code-note-copy" class="canva-text" style="color: rgb(213, 231, 244); font-weight: 400; font-style: normal; font-size: 13px;">One line can be the start of something big.</p>
+       </aside>
+      </div>
+     </div>
+    </section>
+    <section id="why" class="w-full py-20">
+     <div class="content-width">
+      <div class="max-w-2xl">
+       <p data-template-id="why-eyebrow" class="canva-tag font-semibold uppercase tracking-[0.16em]" style="color: rgb(55, 118, 171); font-weight: 700; font-style: normal; font-size: 13px;">Why start here</p>
+       <h2 data-template-id="why-title" class="section-title canva-text mt-3 font-semibold leading-tight" style="color: rgb(23, 50, 77); font-weight: 700; font-style: normal; font-size: 24px;">Small steps. Big possibilities.</h2>
+       <p data-template-id="why-copy" class="canva-text mt-4 max-w-xl leading-7" style="color: rgb(73, 100, 123); font-weight: 400; font-style: normal; font-size: 16px;">Python keeps the complicated parts in the background, so you can focus on ideas, experiments, and the satisfying moment when your code works.</p>
+      </div>
+      <div class="mt-11 grid gap-5 md:grid-cols-3">
+       <article data-template-id="feature-card-one" class="feature-card canva-card" style="background: rgb(255, 255, 255);"><span class="icon-tile bg-[#e5f2ff] text-[#2468a5]" aria-hidden="true"><i data-lucide="message-square-text"></i></span>
+        <h3 data-template-id="feature-one-title" class="canva-text font-bold" style="color: rgb(23, 50, 77); font-weight: 700; font-style: normal; font-size: 19px;">Easy to read</h3>
+        <p data-template-id="feature-one-copy" class="canva-text mt-3 leading-7" style="color: rgb(84, 112, 135); font-weight: 400; font-style: normal; font-size: 15px;">Python reads almost like everyday language, so you can spend more time creating and less time untangling symbols.</p>
+       </article>
+       <article data-template-id="feature-card-two" class="feature-card canva-card" style="background: rgb(255, 255, 255);"><span class="icon-tile bg-[#fff3c7] text-[#a36a00]" aria-hidden="true"><i data-lucide="blocks"></i></span>
+        <h3 data-template-id="feature-two-title" class="canva-text font-bold" style="color: rgb(23, 50, 77); font-weight: 700; font-style: normal; font-size: 19px;">Useful everywhere</h3>
+        <p data-template-id="feature-two-copy" class="canva-text mt-3 leading-7" style="color: rgb(84, 112, 135); font-weight: 400; font-style: normal; font-size: 15px;">Build a tiny game, automate a task, analyse a dataset, or create a website — Python can grow with your interests.</p>
+       </article>
+       <article data-template-id="feature-card-three" class="feature-card canva-card" style="background: rgb(255, 255, 255);"><span class="icon-tile bg-[#dff5e9] text-[#207457]" aria-hidden="true"><i data-lucide="users-round"></i></span>
+        <h3 data-template-id="feature-three-title" class="canva-text font-bold" style="color: rgb(23, 50, 77); font-weight: 700; font-style: normal; font-size: 19px;">Never learn alone</h3>
+        <p data-template-id="feature-three-copy" class="canva-text mt-3 leading-7" style="color: rgb(84, 112, 135); font-weight: 400; font-style: normal; font-size: 15px;">A generous global community means plenty of tutorials, examples, and encouraging people to learn alongside.</p>
+       </article>
+      </div>
+     </div>
+    </section>
+    <section id="start" class="w-full bg-[#eef6fb] py-20">
+     <div class="content-width">
+      <div class="text-center">
+       <p data-template-id="path-eyebrow" class="canva-tag font-semibold uppercase tracking-[0.16em]" style="color: rgb(55, 118, 171); font-weight: 700; font-style: normal; font-size: 13px;">Your beginner path</p>
+       <h2 data-template-id="path-title" class="section-title canva-text mt-3 font-semibold leading-tight" style="color: rgb(23, 50, 77); font-weight: 700; font-style: normal; font-size: 24px;">Your first win is closer than you think.</h2>
+       <p data-template-id="path-copy" class="canva-text mx-auto mt-4 max-w-2xl leading-7" style="color: rgb(73, 100, 123); font-weight: 400; font-style: normal; font-size: 16px;">You do not need to know everything before you begin. Just follow the next small step and let your confidence build.</p>
+      </div>
+      <div class="mt-12 grid gap-8 md:grid-cols-3">
+       <article class="step-line text-center"><span class="step-number mx-auto bg-[#17324d] text-white">1</span>
+        <h3 data-template-id="step-one-title" class="canva-text mt-5 font-bold" style="color: rgb(23, 50, 77); font-weight: 700; font-style: normal; font-size: 18px;">Meet the basics</h3>
+        <p data-template-id="step-one-copy" class="canva-text mx-auto mt-3 max-w-xs leading-7" style="color: rgb(84, 112, 135); font-weight: 400; font-style: normal; font-size: 15px;">Try variables, simple messages, and a few everyday building blocks.</p>
+       </article>
+       <article class="step-line text-center"><span class="step-number mx-auto bg-[#ffd34e] text-[#17324d]">2</span>
+        <h3 data-template-id="step-two-title" class="canva-text mt-5 font-bold" style="color: rgb(23, 50, 77); font-weight: 700; font-style: normal; font-size: 18px;">Make it yours</h3>
+        <p data-template-id="step-two-copy" class="canva-text mx-auto mt-3 max-w-xs leading-7" style="color: rgb(84, 112, 135); font-weight: 400; font-style: normal; font-size: 15px;">Choose a tiny project that feels personal, playful, or genuinely useful.</p>
+       </article>
+       <article class="step-line text-center"><span class="step-number mx-auto bg-[#3776ab] text-white">3</span>
+        <h3 data-template-id="step-three-title" class="canva-text mt-5 font-bold" style="color: rgb(23, 50, 77); font-weight: 700; font-style: normal; font-size: 18px;">Keep exploring</h3>
+        <p data-template-id="step-three-copy" class="canva-text mx-auto mt-3 max-w-xs leading-7" style="color: rgb(84, 112, 135); font-weight: 400; font-style: normal; font-size: 15px;">Build on each success and discover the corners of Python that excite you most.</p>
+       </article>
+      </div>
+     </div>
+    </section>
+    <section class="w-full py-20">
+     <div data-template-id="closing-banner" class="content-width canva-banner rounded-[24px] px-7 py-12 text-center shadow-sm md:px-14" style="background: rgb(23, 50, 77);">
+      <h2 data-template-id="closing-title" class="section-title canva-text mx-auto max-w-2xl font-semibold leading-tight" style="color: rgb(255, 255, 255); font-weight: 700; font-style: normal; font-size: 24px;">Ready to turn curiosity into code?</h2>
+      <p data-template-id="closing-copy" class="canva-text mx-auto mt-4 max-w-xl leading-7" style="color: rgb(213, 231, 244); font-weight: 400; font-style: normal; font-size: 16px;">Start simple, stay curious, and celebrate every small breakthrough along the way.</p><a data-template-id="closing-cta" class="canva-button mt-7 inline-flex items-center gap-2 rounded-full px-6 py-3.5 font-semibold no-underline transition-transform hover:-translate-y-0.5" href="#top" style="background: rgb(255, 211, 78); color: rgb(23, 50, 77); font-weight: 700; font-style: normal; font-size: 16px;">Back to the beginning</a>
+     </div>
+    </section>
+   </main>
+   <footer class="w-full border-t border-[#dce8f0] py-7">
+    <div class="content-width flex flex-wrap items-center justify-between gap-3">
+     <p data-template-id="footer-copy" class="canva-text text-sm" style="color: rgb(23, 50, 77); font-weight: 700; font-style: normal; font-size: 16px;">Python, made friendly.</p>
+     <p data-template-id="footer-note" class="canva-text text-sm" style="color: rgb(100, 128, 150); font-weight: 400; font-style: normal; font-size: 14px;">One welcoming step at a time.</p>
+    </div>
+   </footer>
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      lucide.createIcons();
+    });
+  </script>
+ 
+</body></html>

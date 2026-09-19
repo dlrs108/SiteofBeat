@@ -64,12 +64,13 @@ export async function onRequest(context) {
             recognizedText = data.exports['text/plain'];
         }
 
-        return new Response(JSON.stringify({ text: recognizedText }), {
+        // 把 MyScript 的真实回复原封不动发回给前端调试
+        return new Response(JSON.stringify({ 
+            text: 'Debug: 请看 raw 字段',
+            raw: data 
+        }), {
             status: 200,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-            },
+            headers: { 'Content-Type': 'application/json' }
         });
 
     } catch (err) {

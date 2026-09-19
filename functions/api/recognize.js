@@ -30,37 +30,39 @@ export async function onRequest(context) {
             }))
         }];
 
-        // 补齐 MyScript 要求的完整请求体格式
         const payload = {
-            contentType: "application/vnd.myscript.jiix", 
+            xDPI: 96,
+            yDPI: 96,
             width: width,
             height: height,
-            strokeGroups: strokeGroups,
+            contentType: "Text",
+            conversionState: "DIGITAL_EDIT",
             configuration: {
                 lang: "zh_CN",
                 text: {
                     mimeTypes: ["text/plain"]
                 }
-            }
+            },
+            strokeGroups: strokeGroups
         };
 
         const payloadString = JSON.stringify(payload);
         const encoder = new TextEncoder();
-        
-        // 计算 HMAC-SHA512 签名
-        const keyBuffer = encoder.encode(env.MYSCRIPT_HMAC_KEY);
+
+        // MyScript 要求密钥为 ApplicationKey 拼接 HMAC Key
+        const combinedKey = env.MYSCRIPT_APP_KEY + env.MYSCRIPT_HMAC_KEY;
+        const keyBuffer = encoder.encode(combinedKey);
         const dataBuffer = encoder.encode(payloadString);
-        
+
         const cryptoKey = await crypto.subtle.importKey(
             'raw', keyBuffer, { name: 'HMAC', hash: 'SHA-512' }, false, ['sign']
         );
         const signature = await crypto.subtle.sign('HMAC', cryptoKey, dataBuffer);
-        
+
         const hmacSignature = Array.from(new Uint8Array(signature))
             .map(b => b.toString(16).padStart(2, '0'))
             .join('');
 
-        // 发送请求给 MyScript
         const response = await fetch('https://cloud.myscript.com/api/v4.0/iink/batch', {
             method: 'POST',
             headers: {
@@ -72,11 +74,10 @@ export async function onRequest(context) {
         });
 
         const data = await response.json();
-        
-        // 把原始返回丢给前端，方便随时看错误
+
         return new Response(JSON.stringify({ 
             text: data.exports ? (data.exports['text/plain'] || '') : '',
-            raw: data 
+            raw: data
         }), {
             status: 200,
             headers: {

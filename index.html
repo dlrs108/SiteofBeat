@@ -61,32 +61,27 @@
     </div>
 
     <!-- 引入 MyScript iink-ts SDK -->
-    <script src="https://unpkg.com/iink-ts@latest/dist/iink.min.js"></script>
-    <script>
-        async function init() {
-            const canvas = document.getElementById('editor');
-            const resultDiv = document.getElementById('result');
+    <script src="https://cdn.jsdelivr.net/npm/iink-ts@3.3.2/dist/iink.min.js"></script>
+        <script>
+    async function init() {
+        const canvas = document.getElementById('editor');
+        const resultDiv = document.getElementById('result');
 
-            // 注意：这里我们不直接填真钥匙，而是通过 Cloudflare 后端代理
-            const editor = new iink.Editor({
-                // 这里填假的占位符，真正的 Key 在 Cloudflare 环境变量里
-                applicationKey: 'PLACEHOLDER',
-                hmacKey: 'PLACEHOLDER',
-                recognitionParams: {
-                    type: 'TEXT',
-                    protocol: 'WEBSOCKET',
+        try {
+            // 新版初始化方式：使用 Editor.load 方法
+            const editor = await iink.Editor.load(canvas, 'INTERACTIVEINK', {
+                configuration: {
                     server: {
-                        scheme: 'wss',
-                        host: 'cloud.myscript.com',
+                        // 因为是通过后端代理，这里填假的占位符即可
                         applicationKey: 'PLACEHOLDER',
                         hmacKey: 'PLACEHOLDER'
                     }
                 }
             });
 
-            await editor.attach(canvas);
             console.log('MyScript Editor 已加载（通过代理）');
 
+            // 监听识别结果变化
             editor.eventBus.on('changed', (event) => {
                 if (event && event.exports) {
                     const text = event.exports['text/plain'] || '';
@@ -96,11 +91,17 @@
 
             editor.eventBus.on('error', (err) => {
                 console.error('识别出错：', err);
-                resultDiv.innerText = '识别失败，请检查密钥和网络。';
+                resultDiv.innerText = '识别失败，请检查网络或代理配置。';
             });
-        }
 
-        window.addEventListener('load', init);
+        } catch (err) {
+            console.error('初始化失败：', err);
+            resultDiv.innerText = '初始化失败：' + err.message;
+        }
+    }
+
+    window.addEventListener('load', init);
+</script>
     </script>
 </body>
 </html>

@@ -22,6 +22,7 @@ export async function onRequest(context) {
         const width = body.width || 800;
         const height = body.height || 300;
 
+        // 转换笔迹数据格式
         const strokeGroups = [{
             strokes: strokes.map(stroke => ({
                 x: stroke.map(p => p.x),
@@ -30,12 +31,13 @@ export async function onRequest(context) {
             }))
         }];
 
+        // 严格按照 MyScript 官方格式构造请求体
         const payload = {
             xDPI: 96,
             yDPI: 96,
             width: width,
             height: height,
-            contentType: "Text",
+            contentType: "Text", // 注意：这里明确指定识别类型为纯文本
             conversionState: "DIGITAL_EDIT",
             configuration: {
                 lang: "zh_CN",
@@ -49,7 +51,7 @@ export async function onRequest(context) {
         const payloadString = JSON.stringify(payload);
         const encoder = new TextEncoder();
 
-        // MyScript 要求密钥为 ApplicationKey 拼接 HMAC Key
+        // 签名：MyScript 要求将 ApplicationKey 和 HmacKey 拼接作为 HMAC 密钥
         const combinedKey = env.MYSCRIPT_APP_KEY + env.MYSCRIPT_HMAC_KEY;
         const keyBuffer = encoder.encode(combinedKey);
         const dataBuffer = encoder.encode(payloadString);
@@ -73,7 +75,15 @@ export async function onRequest(context) {
             body: payloadString
         });
 
-        const data = await response.json();
+        // 先拿到原始文本，避免解析崩溃
+        const responseText = await response.text();
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            // 如果 MyScript 返回了非 JSON 内容（比如 Internal error），我们直接把它包好发给前端
+            data = { raw_response: responseText };
+        }
 
         return new Response(JSON.stringify({ 
             text: data.exports ? (data.exports['text/plain'] || '') : '',

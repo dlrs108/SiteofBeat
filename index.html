@@ -28,107 +28,101 @@
     </div>
 
     <script>
-        const canvas = document.getElementById('editor');
-        const ctx = canvas.getContext('2d');
-        const resultDiv = document.getElementById('result');
-        const btn = document.getElementById('recognizeBtn');
+    const canvas = document.getElementById('editor');
+    const ctx = canvas.getContext('2d');
+    const resultDiv = document.getElementById('result');
+    const btn = document.getElementById('recognizeBtn');
 
-        // 记录笔迹坐标
-        let strokes = [];
-        let currentStroke = null;
+    let strokes = [];
+    let currentStroke = null;
 
-        // 调整 Canvas 分辨率
-        const resizeCanvas = () => {
-            const rect = canvas.getBoundingClientRect();
-            canvas.width = rect.width;
-            canvas.height = rect.height;
-            ctx.lineWidth = 3;
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = '#000';
-        };
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
+    const resizeCanvas = () => {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#000';
+    };
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
 
-        // 鼠标/触摸事件
-        const getPos = (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            return { x: clientX - rect.left, y: clientY - rect.top };
-        };
+    const getPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    };
 
-        const startDraw = (e) => {
-            e.preventDefault();
-            const pos = getPos(e);
-            currentStroke = [{ x: pos.x, y: pos.y, t: Date.now() }];
-            strokes.push(currentStroke);
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-        };
+    const startDraw = (e) => {
+        e.preventDefault();
+        const pos = getPos(e);
+        currentStroke = [{ x: pos.x, y: pos.y, t: Date.now() }];
+        strokes.push(currentStroke);
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+    };
 
-        const draw = (e) => {
-            if (!currentStroke) return;
-            e.preventDefault();
-            const pos = getPos(e);
-            currentStroke.push({ x: pos.x, y: pos.y, t: Date.now() });
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-        };
+    const draw = (e) => {
+        if (!currentStroke) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        currentStroke.push({ x: pos.x, y: pos.y, t: Date.now() });
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+    };
 
-        const endDraw = () => {
-            currentStroke = null;
-        };
+    const endDraw = () => {
+        currentStroke = null;
+    };
 
-        canvas.addEventListener('mousedown', startDraw);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', endDraw);
-        canvas.addEventListener('mouseleave', endDraw);
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', endDraw);
+    canvas.addEventListener('mouseleave', endDraw);
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    canvas.addEventListener('touchend', endDraw);
 
-        canvas.addEventListener('touchstart', startDraw, { passive: false });
-        canvas.addEventListener('touchmove', draw, { passive: false });
-        canvas.addEventListener('touchend', endDraw);
-
-        // 清空画板
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            strokes = [];
+    btn.addEventListener('click', async () => {
+        if (strokes.length === 0) {
+            resultDiv.innerText = '请先写点什么吧！';
+            return;
         }
 
-        // 点击识别
-        btn.addEventListener('click', async () => {
-            if (strokes.length === 0) {
-                resultDiv.innerText = '请先写点什么吧！';
-                return;
+        resultDiv.innerText = '识别中...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/api/recognize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    strokes: strokes,
+                    width: canvas.width,
+                    height: canvas.height
+                })
+            });
+
+            // 先检查状态码，如果不是 200，就把响应体当纯文本读出来
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
 
-            resultDiv.innerText = '识别中...';
-            btn.disabled = true;
-
-            try {
-                // 把笔迹发给我们的 Cloudflare 后端（无需在前端暴露任何密钥）
-                const response = await fetch('/api/recognize', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        strokes: strokes,
-                        width: canvas.width,
-                        height: canvas.height
-                    })
-                });
-
-                const data = await response.json();
-                
-                if (data.error) {
-                    resultDiv.innerText = '识别失败：' + data.error;
-                } else {
-                    resultDiv.innerText = '识别结果：' + (data.text || '未识别出文字');
-                }
-            } catch (err) {
-                resultDiv.innerText = '网络错误：' + err.message;
-            } finally {
-                btn.disabled = false;
+            const data = await response.json();
+            
+            if (data.error) {
+                resultDiv.innerText = '❌ 识别失败：' + data.error;
+            } else {
+                resultDiv.innerText = '识别结果：' + (data.text || '未识别出文字');
             }
-        });
-    </script>
+        } catch (err) {
+            resultDiv.innerText = '❌ 网络错误：' + err.message;
+        } finally {
+            btn.disabled = false;
+        }
+    });
+</script>
 </body>
 </html>

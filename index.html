@@ -6,102 +6,129 @@
     <title>我的个人主页</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #0f172a;
-            color: #e2e8f0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 2rem;
-        }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }
         h1 { font-size: 2.5rem; margin-bottom: 2rem; background: linear-gradient(90deg, #38bdf8, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .card {
-            background: #1e293b;
-            border-radius: 1rem;
-            padding: 2rem;
-            max-width: 600px;
-            width: 100%;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
+        .card { background: #1e293b; border-radius: 1rem; padding: 2rem; max-width: 600px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .card h2 { margin-bottom: 1rem; color: #38bdf8; }
-        .card p { margin-bottom: 1.5rem; line-height: 1.6; color: #94a3b8; }
-        .btn {
-            display: inline-block;
-            background: linear-gradient(90deg, #38bdf8, #a78bfa);
-            color: #0f172a;
-            padding: 0.8rem 2rem;
-            border-radius: 999px;
-            text-decoration: none;
-            font-weight: bold;
-            transition: transform 0.2s, opacity 0.2s;
-        }
-        .btn:hover { transform: scale(1.05); opacity: 0.9; }
+        .btn { display: inline-block; background: linear-gradient(90deg, #38bdf8, #a78bfa); color: #0f172a; padding: 0.8rem 2rem; border-radius: 999px; text-decoration: none; font-weight: bold; border: none; cursor: pointer; margin-top: 1rem; transition: transform 0.2s; }
+        .btn:hover { transform: scale(1.05); }
+        #editor { width: 100%; height: 300px; background: white; border-radius: 0.5rem; touch-action: none; cursor: crosshair; }
+        #result { margin-top: 1rem; font-size: 1.2rem; color: #38bdf8; min-height: 1.5rem; }
     </style>
 </head>
 <body>
     <h1>欢迎来到我的个人主页</h1>
-    
     <div class="card">
-        <h2>我的项目</h2>
-        <p>这是我用代码折腾出来的一些小玩意儿，点下面的按钮可以跳转过去体验。</p>
+        <h2>手写识别（安全模式）</h2>
+        <p style="margin-bottom: 1rem; color: #94a3b8;">在下面写字，然后点击识别。密钥由后端安全保管。</p>
         
-        <!-- Vocab 项目链接 -->
-        <a class="btn" href="https://siteofbeat.pages.dev/secret_file/" target="_blank">进入 Vocab 背单词工具 →</a>
+        <canvas id="editor"></canvas>
+        <button class="btn" id="recognizeBtn">🔍 开始识别</button>
+        <div id="result">识别结果将显示在这里...</div>
     </div>
 
-    <div class="card" style="margin-top: 2rem;">
-        <h2>手写识别测试</h2>
-        <p>这是基于 MyScript 云端识别引擎的测试区，直接在下方手写，看看它能不能认出你的字。</p>
-        
-        <canvas id="editor" style="width: 100%; height: 300px; background: white; border-radius: 0.5rem; touch-action: none;"></canvas>
-        <div id="result" style="margin-top: 1rem; font-size: 1.2rem; color: #38bdf8; min-height: 1.5rem;">识别结果将显示在这里...</div>
-    </div>
-
-    <!-- 引入 MyScript iink-ts SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/iink-ts@3.3.2/dist/iink.min.js"></script>
-        <script>
-    async function init() {
+    <script>
         const canvas = document.getElementById('editor');
+        const ctx = canvas.getContext('2d');
         const resultDiv = document.getElementById('result');
+        const btn = document.getElementById('recognizeBtn');
 
-        try {
-            // 新版初始化方式：使用 Editor.load 方法
-            const editor = await iink.Editor.load(canvas, 'INTERACTIVEINK', {
-                configuration: {
-                    server: {
-                        // 因为是通过后端代理，这里填假的占位符即可
-                        applicationKey: 'PLACEHOLDER',
-                        hmacKey: 'PLACEHOLDER'
-                    }
-                }
-            });
+        // 记录笔迹坐标
+        let strokes = [];
+        let currentStroke = null;
 
-            console.log('MyScript Editor 已加载（通过代理）');
+        // 调整 Canvas 分辨率
+        const resizeCanvas = () => {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#000';
+        };
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
 
-            // 监听识别结果变化
-            editor.eventBus.on('changed', (event) => {
-                if (event && event.exports) {
-                    const text = event.exports['text/plain'] || '';
-                    resultDiv.innerText = text ? `识别结果：${text}` : '正在识别...';
-                }
-            });
+        // 鼠标/触摸事件
+        const getPos = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        };
 
-            editor.eventBus.on('error', (err) => {
-                console.error('识别出错：', err);
-                resultDiv.innerText = '识别失败，请检查网络或代理配置。';
-            });
+        const startDraw = (e) => {
+            e.preventDefault();
+            const pos = getPos(e);
+            currentStroke = [{ x: pos.x, y: pos.y, t: Date.now() }];
+            strokes.push(currentStroke);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+        };
 
-        } catch (err) {
-            console.error('初始化失败：', err);
-            resultDiv.innerText = '初始化失败：' + err.message;
+        const draw = (e) => {
+            if (!currentStroke) return;
+            e.preventDefault();
+            const pos = getPos(e);
+            currentStroke.push({ x: pos.x, y: pos.y, t: Date.now() });
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+        };
+
+        const endDraw = () => {
+            currentStroke = null;
+        };
+
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', endDraw);
+        canvas.addEventListener('mouseleave', endDraw);
+
+        canvas.addEventListener('touchstart', startDraw, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', endDraw);
+
+        // 清空画板
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            strokes = [];
         }
-    }
 
-    window.addEventListener('load', init);
-</script>
+        // 点击识别
+        btn.addEventListener('click', async () => {
+            if (strokes.length === 0) {
+                resultDiv.innerText = '请先写点什么吧！';
+                return;
+            }
+
+            resultDiv.innerText = '识别中...';
+            btn.disabled = true;
+
+            try {
+                // 把笔迹发给我们的 Cloudflare 后端（无需在前端暴露任何密钥）
+                const response = await fetch('/api/recognize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        strokes: strokes,
+                        width: canvas.width,
+                        height: canvas.height
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    resultDiv.innerText = '识别失败：' + data.error;
+                } else {
+                    resultDiv.innerText = '识别结果：' + (data.text || '未识别出文字');
+                }
+            } catch (err) {
+                resultDiv.innerText = '网络错误：' + err.message;
+            } finally {
+                btn.disabled = false;
+            }
+        });
     </script>
 </body>
 </html>

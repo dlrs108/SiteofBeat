@@ -1,7 +1,7 @@
 export async function onRequest(context) {
     const { request, env } = context;
 
-    // 处理跨域
+    // 处理跨域预检请求
     if (request.method === 'OPTIONS') {
         return new Response(null, {
             headers: {
@@ -22,7 +22,7 @@ export async function onRequest(context) {
         const width = body.width || 800;
         const height = body.height || 300;
 
-        // 转换笔迹数据格式
+        // 格式化笔迹数据
         const strokeGroups = [{
             strokes: strokes.map(stroke => ({
                 x: stroke.map(p => p.x),
@@ -37,7 +37,7 @@ export async function onRequest(context) {
             yDPI: 96,
             width: width,
             height: height,
-            contentType: "Text", // 注意：这里明确指定识别类型为纯文本
+            contentType: "Text",
             conversionState: "DIGITAL_EDIT",
             configuration: {
                 lang: "zh_CN",
@@ -65,11 +65,11 @@ export async function onRequest(context) {
             .map(b => b.toString(16).padStart(2, '0'))
             .join('');
 
+        // 发送请求给 MyScript
         const response = await fetch('https://cloud.myscript.com/api/v4.0/iink/batch', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
                 'applicationKey': env.MYSCRIPT_APP_KEY,
                 'hmac': hmacSignature
             },
@@ -82,7 +82,6 @@ export async function onRequest(context) {
         try {
             data = JSON.parse(responseText);
         } catch (e) {
-            // 如果 MyScript 返回了非 JSON 内容（比如 Internal error），我们直接把它包好发给前端
             data = { raw_response: responseText };
         }
 

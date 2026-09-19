@@ -4,12 +4,103 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的个人主页</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        h1 { font-size: 2.5rem; margin-bottom: 2rem; background: linear-gradient(90deg, #38bdf8, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .card {
+            background: #1e293b;
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .card h2 { margin-bottom: 1rem; color: #38bdf8; }
+        .card p { margin-bottom: 1.5rem; line-height: 1.6; color: #94a3b8; }
+        .btn {
+            display: inline-block;
+            background: linear-gradient(90deg, #38bdf8, #a78bfa);
+            color: #0f172a;
+            padding: 0.8rem 2rem;
+            border-radius: 999px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        .btn:hover { transform: scale(1.05); opacity: 0.9; }
+    </style>
 </head>
 <body>
-    <h1>欢迎来到我的个人主页！</h1>
+    <h1>欢迎来到我的个人主页</h1>
     
-    <p><a href="https://vocabhelper.pages.dev" target="_blank">👉 点我进入 Vocab 背单词工具</a></p>
-    
-    <p><a href="https://frankasbeat.my.canva.site/code" target="_blank">👉 访问我用 Canva 设计的作品</a></p>
+    <div class="card">
+        <h2>我的项目</h2>
+        <p>这是我用代码折腾出来的一些小玩意儿，点下面的按钮可以跳转过去体验。</p>
+        
+        <!-- Vocab 项目链接（替换成你真实的网址） -->
+        <a class="btn" href="https://你的vocab网址.pages.dev" target="_blank">进入 Vocab 背单词工具 →</a>
+    </div>
+
+    <div class="card" style="margin-top: 2rem;">
+        <h2>手写识别测试</h2>
+        <p>这是基于 MyScript 云端识别引擎的测试区，直接在下方手写，看看它能不能认出你的字。</p>
+        
+        <canvas id="editor" style="width: 100%; height: 300px; background: white; border-radius: 0.5rem; touch-action: none;"></canvas>
+        <div id="result" style="margin-top: 1rem; font-size: 1.2rem; color: #38bdf8; min-height: 1.5rem;">识别结果将显示在这里...</div>
+    </div>
+
+    <!-- 引入 MyScript iink-ts SDK -->
+    <script src="https://unpkg.com/iink-ts@latest/dist/iink.min.js"></script>
+    <script>
+        async function init() {
+            const canvas = document.getElementById('editor');
+            const resultDiv = document.getElementById('result');
+
+            // 注意：这里我们不直接填真钥匙，而是通过 Cloudflare 后端代理
+            const editor = new iink.Editor({
+                // 这里填假的占位符，真正的 Key 在 Cloudflare 环境变量里
+                applicationKey: 'PLACEHOLDER',
+                hmacKey: 'PLACEHOLDER',
+                recognitionParams: {
+                    type: 'TEXT',
+                    protocol: 'WEBSOCKET',
+                    server: {
+                        scheme: 'wss',
+                        host: 'cloud.myscript.com',
+                        applicationKey: 'PLACEHOLDER',
+                        hmacKey: 'PLACEHOLDER'
+                    }
+                }
+            });
+
+            await editor.attach(canvas);
+            console.log('MyScript Editor 已加载（通过代理）');
+
+            editor.eventBus.on('changed', (event) => {
+                if (event && event.exports) {
+                    const text = event.exports['text/plain'] || '';
+                    resultDiv.innerText = text ? `识别结果：${text}` : '正在识别...';
+                }
+            });
+
+            editor.eventBus.on('error', (err) => {
+                console.error('识别出错：', err);
+                resultDiv.innerText = '识别失败，请检查密钥和网络。';
+            });
+        }
+
+        window.addEventListener('load', init);
+    </script>
 </body>
 </html>

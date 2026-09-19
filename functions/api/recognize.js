@@ -1,7 +1,7 @@
 export async function onRequest(context) {
     const { request, env } = context;
 
-    // 处理跨域预检
+    // 处理跨域
     if (request.method === 'OPTIONS') {
         return new Response(null, {
             headers: {
@@ -30,23 +30,24 @@ export async function onRequest(context) {
             }))
         }];
 
+        // 补齐 MyScript 要求的完整请求体格式
         const payload = {
+            contentType: "application/vnd.myscript.jiix", 
             width: width,
             height: height,
             strokeGroups: strokeGroups,
             configuration: {
-                lang: "zh_CN", // 中英文识别
+                lang: "zh_CN",
                 text: {
                     mimeTypes: ["text/plain"]
                 }
             }
         };
 
-        // =============== 核心修复：计算 HMAC 签名 ===============
         const payloadString = JSON.stringify(payload);
-        
-        // 使用 Web Crypto API 计算 HMAC-SHA512 签名
         const encoder = new TextEncoder();
+        
+        // 计算 HMAC-SHA512 签名
         const keyBuffer = encoder.encode(env.MYSCRIPT_HMAC_KEY);
         const dataBuffer = encoder.encode(payloadString);
         
@@ -55,33 +56,27 @@ export async function onRequest(context) {
         );
         const signature = await crypto.subtle.sign('HMAC', cryptoKey, dataBuffer);
         
-        // 将签名转换为十六进制字符串
         const hmacSignature = Array.from(new Uint8Array(signature))
             .map(b => b.toString(16).padStart(2, '0'))
             .join('');
-        // =======================================================
 
-        // 带着计算好的签名，去请求 MyScript
+        // 发送请求给 MyScript
         const response = await fetch('https://cloud.myscript.com/api/v4.0/iink/batch', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'applicationKey': env.MYSCRIPT_APP_KEY,
-                'hmac': hmacSignature // 这里传的是刚算出来的临时签名，不是原始密钥！
+                'hmac': hmacSignature
             },
             body: payloadString
         });
 
         const data = await response.json();
         
-        let recognizedText = '';
-        if (data && data.exports && data.exports['text/plain']) {
-            recognizedText = data.exports['text/plain'];
-        }
-
-        return new Response(JSON.stringify({
-            text: recognizedText,
-            raw: data
+        // 把原始返回丢给前端，方便随时看错误
+        return new Response(JSON.stringify({ 
+            text: data.exports ? (data.exports['text/plain'] || '') : '',
+            raw: data 
         }), {
             status: 200,
             headers: {

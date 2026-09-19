@@ -79,7 +79,10 @@ export async function onRequest(context) {
             recognizedText = data.exports['text/plain'];
         }
 
-        return new Response(JSON.stringify({ text: recognizedText }), {
+        return new Response(JSON.stringify({
+            text: recognizedText,
+            raw: data
+        }), {
             status: 200,
             headers: {
                 'Content-Type': 'application/json',

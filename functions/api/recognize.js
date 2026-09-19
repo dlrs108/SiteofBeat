@@ -1,7 +1,7 @@
 export async function onRequest(context) {
     const { request, env } = context;
 
-    // 1. 处理跨域预检
+    // 处理跨域预检
     if (request.method === 'OPTIONS') {
         return new Response(null, {
             headers: {
@@ -22,8 +22,6 @@ export async function onRequest(context) {
         const width = body.width || 800;
         const height = body.height || 300;
 
-        // 2. 把前端传来的笔迹转换成 MyScript 需要的格式
-        // 这里简单地把笔画连成线，作为一个整体识别
         const strokeGroups = [{
             strokes: strokes.map(stroke => ({
                 x: stroke.map(p => p.x),
@@ -37,40 +35,56 @@ export async function onRequest(context) {
             height: height,
             strokeGroups: strokeGroups,
             configuration: {
-                lang: "en_US", // 你可以改成 "zh_CN" 来识别中文
+                lang: "zh_CN", // 中英文识别
                 text: {
                     mimeTypes: ["text/plain"]
                 }
             }
         };
 
-        // 3. 带上真实密钥，去请求 MyScript 的 REST API
-        // 注意：从 Cloudflare 环境变量读取密钥，前端完全不知道！
+        // =============== 核心修复：计算 HMAC 签名 ===============
+        const payloadString = JSON.stringify(payload);
+        
+        // 使用 Web Crypto API 计算 HMAC-SHA512 签名
+        const encoder = new TextEncoder();
+        const keyBuffer = encoder.encode(env.MYSCRIPT_HMAC_KEY);
+        const dataBuffer = encoder.encode(payloadString);
+        
+        const cryptoKey = await crypto.subtle.importKey(
+            'raw', keyBuffer, { name: 'HMAC', hash: 'SHA-512' }, false, ['sign']
+        );
+        const signature = await crypto.subtle.sign('HMAC', cryptoKey, dataBuffer);
+        
+        // 将签名转换为十六进制字符串
+        const hmacSignature = Array.from(new Uint8Array(signature))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+        // =======================================================
+
+        // 带着计算好的签名，去请求 MyScript
         const response = await fetch('https://cloud.myscript.com/api/v4.0/iink/batch', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'applicationKey': env.MYSCRIPT_APP_KEY,
-                'hmac': env.MYSCRIPT_HMAC_KEY
+                'hmac': hmacSignature // 这里传的是刚算出来的临时签名，不是原始密钥！
             },
-            body: JSON.stringify(payload)
+            body: payloadString
         });
 
         const data = await response.json();
         
-        // 4. 提取识别结果并返回给前端
         let recognizedText = '';
         if (data && data.exports && data.exports['text/plain']) {
             recognizedText = data.exports['text/plain'];
         }
 
-        // 把 MyScript 的真实回复原封不动发回给前端调试
-        return new Response(JSON.stringify({ 
-            text: 'Debug: 请看 raw 字段',
-            raw: data 
-        }), {
+        return new Response(JSON.stringify({ text: recognizedText }), {
             status: 200,
-            headers: { 'Content-Type': 'application/json' }
+            headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+            },
         });
 
     } catch (err) {

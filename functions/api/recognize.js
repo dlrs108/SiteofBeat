@@ -70,7 +70,7 @@ export async function onRequest(context) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'applicationKey': env.MYSCRIPT_APP_KEY,
+                'Accept': 'application/vnd.myscript.jiix,application/json',
                 'hmac': hmacSignature
             },
             body: payloadString

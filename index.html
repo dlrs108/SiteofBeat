@@ -3,14 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MyScript 完整自诊断</title>
+<title>MyScript 4.1.0 适配版</title>
+<!-- 引入 iink-ts 的 CSS（确保有默认样式） -->
+<link rel="stylesheet" href="https://unpkg.com/iink-ts@4.1.0/dist/iink.min.css">
 <style>
   body { font-family: -apple-system, sans-serif; padding: 12px; background: #f5f5f5; margin: 0; }
   #status {
     padding: 12px; border-radius: 8px; margin-bottom: 12px;
     background: #1e1e1e; color: #4ade80; font-size: 13px;
     word-break: break-all; white-space: pre-wrap; line-height: 1.6;
-    max-height: 50vh; overflow-y: auto;
+    max-height: 45vh; overflow-y: auto;
   }
   #status.err { color: #ff6b6b; }
   #editor { width: 100%; height: 300px; border: 2px solid #ccc; border-radius: 8px; background: #fff; touch-action: none; }
@@ -37,26 +39,10 @@ window.addEventListener('unhandledrejection', e => {
   log('Promise 异常: ' + (r instanceof Error ? r.message : JSON.stringify(r)), true);
 });
 
-// 备用 CDN 列表：unpkg、国内镜像、jsdelivr
 const CDN_LIST = [
   'https://unpkg.com/iink-ts@4.1.0/dist/iink.min.js',
-  'https://npm.elemecdn.com/iink-ts@4.1.0/dist/iink.min.js',
-  'https://lib.baomitu.com/iink-ts/4.1.0/iink.min.js',
   'https://cdn.jsdelivr.net/npm/iink-ts@4.1.0/dist/iink.min.js'
 ];
-
-async function cdnReachabilityTest() {
-  log('📡 CDN 连通性测试:');
-  for (const url of CDN_LIST) {
-    const host = new URL(url).host;
-    try {
-      const res = await fetch(url, { method: 'HEAD', mode: 'cors' });
-      log(`  ${res.ok ? '✅' : '⚠️'} ${host} → HTTP ${res.status}`);
-    } catch (e) {
-      log(`  ❌ ${host} → ${e.message}`, true);
-    }
-  }
-}
 
 function loadScript(url) {
   return new Promise((resolve, reject) => {
@@ -87,25 +73,23 @@ async function loadLibrary() {
   return false;
 }
 
-// ========== 关键修正：使用 iink.Editor.load() 而非 new iink.Editor() ==========
+// ========== 核心修正：使用 iink.Canvas.load 和 "INTERACTIVE_INK" ==========
 async function initEditor() {
   try {
-    log('⏳ 正在初始化编辑器 (Editor.load 模式)...');
+    log('⏳ 正在初始化编辑器 (Canvas.load 模式)...');
 
-    // 4.1.0 版本的正确初始化方式：静态方法 Editor.load()
-    const editor = await iink.Editor.load(editorEl, "INTERACTIVEINK", {
+    const editor = await iink.Canvas.load(editorEl, "INTERACTIVE_INK", {
       configuration: {
         server: {
-          applicationKey: '1585ff1f-605f-4aab-8dfa-662cdcb33856', // ⚠️ 替换为你的真实密钥
-          hmacKey: '830f624d-8249-4e3d-b9db-a1958cfbaac6'             // ⚠️ 替换为你的真实密钥
+          applicationKey: '1585ff1f-605f-4aab-8dfa-662cdcb33856', // ⚠️ 替换
+          hmacKey: '830f624d-8249-4e3d-b9db-a1958cfbaac6'             // ⚠️ 替换
         }
       }
     });
 
     log('🎉 初始化成功！可以开始手写了。');
 
-    // 监听底层 WebSocket 关闭，捕获服务端拒绝的原因
-    if (editor.canvas?.client?.webSocket) {
+    if (editor?.canvas?.client?.webSocket) {
       editor.canvas.client.webSocket.addEventListener('close', ev => {
         if (ev.code !== 1000) {
           log(`❌ WebSocket 关闭 code=${ev.code} reason=${ev.reason || '无'}`, true);
@@ -114,15 +98,14 @@ async function initEditor() {
     }
   } catch (err) {
     const msg = err?.message || String(err);
-    log('❌ 初始化失败: ' + msg + '\n\n请检查密钥是否完整、账户额度是否耗尽。', true);
+    log('❌ 初始化失败: ' + msg, true);
   }
 }
 
 (async function main() {
-  await cdnReachabilityTest();
   const ok = await loadLibrary();
   if (!ok) {
-    log('\n❌ 所有 CDN 都加载失败。\n请用平板浏览器直接打开下面链接，全选复制保存为 iink.min.js 放同目录，然后把 <script src="..."> 改成 <script src="./iink.min.js">：\nhttps://unpkg.com/iink-ts@4.1.0/dist/iink.min.js', true);
+    log('\n❌ 所有 CDN 都加载失败。', true);
     return;
   }
   await initEditor();

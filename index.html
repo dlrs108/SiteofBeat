@@ -3,57 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MyScript 手写测试</title>
-
-    <!-- 1. 引入 iinkTS 库 (使用 CDN) -->
-    <script src="https://cdn.jsdelivr.net/npm/iink-ts@4.1.0/dist/iink.min.js"></script>
-
-    <!-- 2. 为编辑器容器设置明确的宽高，否则画布可能不显示 -->
+    <title>MyScript 自诊断测试</title>
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; }
-        #editor {
-            width: 90%;
-            height: 400px;
-            margin: 20px auto;
-            border: 2px solid #ccc;
-            border-radius: 8px;
-            touch-action: none; /* 防止触摸时浏览器滚动手势干扰手写 */
+        body { font-family: -apple-system, sans-serif; padding: 15px; background: #f5f5f5; }
+        #status {
+            padding: 15px; border-radius: 8px; margin-bottom: 15px;
+            background: #333; color: #0f0; font-size: 14px;
+            word-break: break-all; white-space: pre-wrap; line-height: 1.5;
         }
+        #editor { width: 100%; height: 300px; border: 2px solid #ccc; border-radius: 8px; background: #fff; touch-action: none; }
+        .err { color: #ff6b6b !important; }
     </style>
 </head>
 <body>
 
-    <!-- 3. 用于承载手写编辑器的 div -->
+    <div id="status">🔍 正在检查...</div>
     <div id="editor"></div>
 
-    <!-- 4. 初始化脚本：放在 body 结尾，确保 DOM 已加载 -->
     <script>
-        (async function() {
-            const editorElement = document.getElementById('editor');
+        const statusEl = document.getElementById('status');
+        const editorEl = document.getElementById('editor');
 
-            // 检查 iink 库是否成功加载
+        function log(msg, isError = false) {
+            statusEl.textContent = msg;
+            if (isError) statusEl.classList.add('err');
+            else statusEl.classList.remove('err');
+        }
+
+        // ========== 第一层：捕获全局未处理错误 ==========
+        window.addEventListener('error', function(e) {
+            log('❌ 全局错误: ' + (e.message || e.error) + '\n文件: ' + (e.filename || 'unknown'), true);
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+            const reason = e.reason;
+            const msg = reason instanceof Error ? reason.message : JSON.stringify(reason);
+            log('❌ 未处理的 Promise 异常: ' + msg, true);
+        });
+
+        // ========== 第二层：检查库是否加载 ==========
+        function checkLibrary() {
             if (typeof iink === 'undefined') {
-                console.error('错误: iink 库未加载，请检查 CDN 链接或网络。');
-                editorElement.innerHTML = '<p style="color:red; text-align:center; padding:20px;">iink 库加载失败，请检查网络或 CDN 链接。</p>';
-                return;
+                log('❌ iink 库没有加载成功。\n可能原因：网络不通、CDN 被屏蔽，或脚本地址写错了。', true);
+                return false;
             }
+            log('✅ iink 库已加载，正在尝试初始化...');
+            return true;
+        }
+
+        // ========== 第三层：初始化，并监听 WebSocket 错误 ==========
+        async function init() {
+            // 先等一小会儿，给 CDN 脚本加载留时间
+            await new Promise(r => setTimeout(r, 500));
+
+            if (!checkLibrary()) return;
 
             try {
-                // 5. 调用 Editor.load 初始化编辑器
-                const editor = await iink.Editor.load(editorElement, "INTERACTIVEINK", {
+                // 使用文档中更常见的 new Editor + initialize 方式
+                const editor = new iink.Editor(editorEl, {
                     configuration: {
                         server: {
-                            applicationKey: '1585ff1f-605f-4aab-8dfa-662cdcb33856', // ⚠️ 替换为你的真实 Application Key
-                            hmacKey: '830f624d-8249-4e3d-b9db-a1958cfbaac6'             // ⚠️ 替换为你的真实 HMAC Key
+                            applicationKey: '1585ff1f-605f-4aab-8dfa-662cdcb33856', // ⚠️ 替换
+                            hmacKey: '830f624d-8249-4e3d-b9db-a1958cfbaac6'             // ⚠️ 替换
                         }
                     }
                 });
-                console.log('✅ MyScript 编辑器初始化成功！', editor);
+
+                log('⏳ 正在调用 initialize()...');
+
+                await editor.initialize();
+
+                // 关键：等待初始化 Promise 真正 resolve，才能确认连接成功
+                if (editor.canvas && editor.canvas.client && editor.canvas.client.initialized) {
+                    await editor.canvas.client.initialized.promise;
+                }
+
+                log('🎉 初始化成功！可以开始手写了。');
+
+                // 监听底层 WebSocket 的关闭，捕获服务端拒绝的原因
+                // 这部分能拿到 WRONG_CREDENTIALS 等关键错误码
+                if (editor.canvas && editor.canvas.client && editor.canvas.client.webSocket) {
+                    editor.canvas.client.webSocket.addEventListener('close', (event) => {
+                        if (event.code !== 1000) { // 1000 是正常关闭
+                            log('❌ WebSocket 连接被关闭。\n错误码: ' + event.code + '\n原因: ' + (event.reason || '未提供') + '\n\n如果是 1006，通常是网络不通；\n如果是 4001/4003 等，可能是密钥无效（WRONG_CREDENTIALS）。', true);
+                        }
+                    });
+                }
+
             } catch (error) {
-                console.error('❌ 初始化失败:', error);
-                editorElement.innerHTML = '<p style="color:red; text-align:center; padding:20px;">初始化失败，请查看浏览器控制台 (F12) 的详细错误信息。</p>';
+                const msg = error && error.message ? error.message : String(error);
+                log('❌ 初始化失败 (catch 到异常):\n' + msg + '\n\n建议检查：密钥是否完整、账户免费额度是否耗尽。', true);
+                console.error(error); // 保留一份到控制台，如果之后能看的话
             }
-        })();
+        }
+
+        init();
     </script>
 </body>
 </html>

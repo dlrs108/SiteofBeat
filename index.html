@@ -3,28 +3,47 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MyScript 4.1.0 适配版</title>
-<!-- 引入 iink-ts 的 CSS（确保有默认样式） -->
+<title>MyScript 4.1.0 Demo</title>
 <link rel="stylesheet" href="https://unpkg.com/iink-ts@4.1.0/dist/iink.min.css">
 <style>
   body { font-family: -apple-system, sans-serif; padding: 12px; background: #f5f5f5; margin: 0; }
-  #status {
-    padding: 12px; border-radius: 8px; margin-bottom: 12px;
-    background: #1e1e1e; color: #4ade80; font-size: 13px;
-    word-break: break-all; white-space: pre-wrap; line-height: 1.6;
-    max-height: 45vh; overflow-y: auto;
-  }
+  #status { padding: 12px; border-radius: 8px; margin-bottom: 12px; background: #1e1e1e; color: #4ade80; font-size: 13px; word-break: break-all; white-space: pre-wrap; line-height: 1.6; max-height: 30vh; overflow-y: auto; }
   #status.err { color: #ff6b6b; }
-  #editor { width: 100%; height: 300px; border: 2px solid #ccc; border-radius: 8px; background: #fff; touch-action: none; }
+  #editor { width: 100%; height: 300px; border: 2px solid #ccc; border-radius: 8px; background: #fff; touch-action: none; margin-bottom: 12px; }
+  
+  /* 工具栏样式 */
+  #toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+  #toolbar button { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; background: #fff; font-size: 14px; cursor: pointer; }
+  #toolbar button.active { background: #007bff; color: #fff; border-color: #007bff; }
+
+  /* 输出结果样式 */
+  #result-box { padding: 12px; border-radius: 8px; background: #fff; border: 1px solid #ddd; min-height: 40px; }
+  #result-content { font-size: 15px; color: #333; white-space: pre-wrap; }
 </style>
 </head>
 <body>
 <div id="status">🔍 准备中...</div>
+
+<!-- 工具栏 -->
+<div id="toolbar">
+  <button id="btn-text" class="active" onclick="switchRecognition('Text')">📝 文本</button>
+  <button id="btn-math" onclick="switchRecognition('Math')">🧮 数学</button>
+  <button id="btn-drawing" onclick="switchRecognition('Drawing')">🎨 绘图</button>
+</div>
+
+<!-- 编辑器 -->
 <div id="editor"></div>
+
+<!-- 输出区域 -->
+<div id="result-box">
+  <strong>识别结果：</strong>
+  <div id="result-content"></div>
+</div>
 
 <script>
 const statusEl = document.getElementById('status');
 const editorEl = document.getElementById('editor');
+const resultContent = document.getElementById('result-content');
 const logs = [];
 function log(msg, isError) {
   logs.push((isError ? '❌ ' : '') + msg);
@@ -73,24 +92,60 @@ async function loadLibrary() {
   return false;
 }
 
-// ========== 核心修正：使用 iink.Canvas.load 和 "INTERACTIVE_INK" ==========
+// 核心配置
+let currentType = 'Text';
+let canvas = null;
+
+// 切换识别类型按钮逻辑
+window.switchRecognition = async function(type) {
+  currentType = type;
+  document.querySelectorAll('#toolbar button').forEach(btn => btn.classList.remove('active'));
+  document.getElementById(`btn-${type.toLowerCase()}`).classList.add('active');
+  
+  log(`🔄 切换识别类型: ${type}，正在重新初始化...`);
+  await initEditor(); // 重新初始化
+};
+
 async function initEditor() {
   try {
-    log('⏳ 正在初始化编辑器 (Canvas.load 模式)...');
+    if (canvas) {
+      canvas.destroy(); // 销毁旧实例
+      canvas = null;
+    }
+    
+    log(`⏳ 正在初始化编辑器 (类型: ${currentType})...`);
 
-    const editor = await iink.Canvas.load(editorEl, "INTERACTIVE_INK", {
+    canvas = await iink.Canvas.load(editorEl, "INTERACTIVE_INK", {
       configuration: {
         server: {
           applicationKey: '1585ff1f-605f-4aab-8dfa-662cdcb33856', // ⚠️ 替换
           hmacKey: '830f624d-8249-4e3d-b9db-a1958cfbaac6'             // ⚠️ 替换
+        },
+        // 动态配置识别类型
+        recognition: {
+          type: currentType, // Text, Math, Drawing 等
+          // 其他配置...
         }
       }
     });
 
     log('🎉 初始化成功！可以开始手写了。');
 
-    if (editor?.canvas?.client?.webSocket) {
-      editor.canvas.client.webSocket.addEventListener('close', ev => {
+    // 监听 exported 事件获取识别结果
+    canvas.event.addEventListener("exported", (event) => {
+      log('📤 收到 exported 事件，更新结果...');
+      // 提取 text/plain 结果
+      const result = event.detail?.["text/plain"] || event.detail?.rawResult?.exports?.["text/plain"];
+      if (result) {
+        resultContent.textContent = result;
+        log('✅ 识别结果已更新。');
+      } else {
+        log('⚠️ 未找到 text/plain 导出内容。', true);
+      }
+    });
+
+    if (canvas?.canvas?.client?.webSocket) {
+      canvas.canvas.client.webSocket.addEventListener('close', ev => {
         if (ev.code !== 1000) {
           log(`❌ WebSocket 关闭 code=${ev.code} reason=${ev.reason || '无'}`, true);
         }
@@ -108,7 +163,7 @@ async function initEditor() {
     log('\n❌ 所有 CDN 都加载失败。', true);
     return;
   }
-  await initEditor();
+  await initEditor(); // 初始加载
 })();
 </script>
 </body>

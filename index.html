@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyScript 手写测试</title>
+
+    <!-- 1. 引入 iinkTS 库 (使用 CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/iink-ts@4.1.0/dist/iink.min.js"></script>
+
+    <!-- 2. 为编辑器容器设置明确的宽高，否则画布可能不显示 -->
+    <style>
+        html, body { height: 100%; margin: 0; padding: 0; }
+        #editor {
+            width: 90%;
+            height: 400px;
+            margin: 20px auto;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            touch-action: none; /* 防止触摸时浏览器滚动手势干扰手写 */
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 3. 用于承载手写编辑器的 div -->
+    <div id="editor"></div>
+
+    <!-- 4. 初始化脚本：放在 body 结尾，确保 DOM 已加载 -->
+    <script>
+        (async function() {
+            const editorElement = document.getElementById('editor');
+
+            // 检查 iink 库是否成功加载
+            if (typeof iink === 'undefined') {
+                console.error('错误: iink 库未加载，请检查 CDN 链接或网络。');
+                editorElement.innerHTML = '<p style="color:red; text-align:center; padding:20px;">iink 库加载失败，请检查网络或 CDN 链接。</p>';
+                return;
+            }
+
+            try {
+                // 5. 调用 Editor.load 初始化编辑器
+                const editor = await iink.Editor.load(editorElement, "INTERACTIVEINK", {
+                    configuration: {
+                        server: {
+                            applicationKey: '你的ApplicationKey', // ⚠️ 替换为你的真实 Application Key
+                            hmacKey: '你的HMACKey'             // ⚠️ 替换为你的真实 HMAC Key
+                        }
+                    }
+                });
+                console.log('✅ MyScript 编辑器初始化成功！', editor);
+            } catch (error) {
+                console.error('❌ 初始化失败:', error);
+                editorElement.innerHTML = '<p style="color:red; text-align:center; padding:20px;">初始化失败，请查看浏览器控制台 (F12) 的详细错误信息。</p>';
+            }
+        })();
+    </script>
+</body>
+</html>

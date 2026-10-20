@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MyScript 4.1.0 Demo</title>
+<title>MyScript 4.1.0 Demo 1</title>
 <link rel="stylesheet" href="https://unpkg.com/iink-ts@4.1.0/dist/iink.min.css">
 <style>
   body { font-family: -apple-system, sans-serif; padding: 12px; background: #f5f5f5; margin: 0; }
@@ -109,38 +109,66 @@ window.switchRecognition = async function(type) {
 async function initEditor() {
   try {
     if (canvas) {
-      canvas.destroy(); // 销毁旧实例
+      canvas.destroy();
       canvas = null;
     }
     
     log(`⏳ 正在初始化编辑器 (类型: ${currentType})...`);
 
+    // 构建配置：针对 Text 类型，强制要求返回 text/plain
+    const recognitionConfig = {
+      type: currentType, // Text, Math, Drawing
+    };
+    if (currentType === 'Text') {
+      recognitionConfig.text = {
+        mimeTypes: ["text/plain"] // 关键：告诉服务器我们只要纯文本
+      };
+    }
+
     canvas = await iink.Canvas.load(editorEl, "INTERACTIVE_INK", {
       configuration: {
         server: {
-          applicationKey: '1585ff1f-605f-4aab-8dfa-662cdcb33856', // ⚠️ 替换
-          hmacKey: '830f624d-8249-4e3d-b9db-a1958cfbaac6'             // ⚠️ 替换
+          applicationKey: '1585ff1f-605f-4aab-8dfa-662cdcb33856',
+          hmacKey: '830f624d-8249-4e3d-b9db-a1958cfbaac6'
         },
-        // 动态配置识别类型
-        recognition: {
-          type: currentType, // Text, Math, Drawing 等
-          // 其他配置...
-        }
+        recognition: recognitionConfig
       }
     });
 
     log('🎉 初始化成功！可以开始手写了。');
 
-    // 监听 exported 事件获取识别结果
+    // 监听 exported 事件
     canvas.event.addEventListener("exported", (event) => {
-      log('📤 收到 exported 事件，更新结果...');
-      // 提取 text/plain 结果
-      const result = event.detail?.["text/plain"] || event.detail?.rawResult?.exports?.["text/plain"];
+      log('📤 收到 exported 事件，开始调试数据...');
+      
+      // 🔍 调试步骤：先把完整的数据结构打印出来看看
+      try {
+        const detailStr = JSON.stringify(event.detail, null, 2);
+        log('🔍 [调试] event.detail 完整结构:\n' + detailStr);
+      } catch (e) {
+        log('🔍 [调试] 无法序列化 event.detail，可能是循环引用。', true);
+      }
+
+      // 尝试多种可能的路径提取 text/plain
+      const possiblePaths = [
+        event.detail?.rawResult?.exports?.["text/plain"],
+        event.detail?.exports?.["text/plain"],
+        event.detail?.["text/plain"]
+      ];
+
+      let result = null;
+      for (const path of possiblePaths) {
+        if (path) {
+          result = path;
+          break;
+        }
+      }
+
       if (result) {
         resultContent.textContent = result;
-        log('✅ 识别结果已更新。');
+        log('✅ 识别结果已更新: ' + result);
       } else {
-        log('⚠️ 未找到 text/plain 导出内容。', true);
+        log('❌ 所有已知路径都未找到 text/plain。请查看上方 [调试] 输出的数据结构。', true);
       }
     });
 
@@ -156,7 +184,6 @@ async function initEditor() {
     log('❌ 初始化失败: ' + msg, true);
   }
 }
-
 (async function main() {
   const ok = await loadLibrary();
   if (!ok) {

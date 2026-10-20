@@ -1,102 +1,132 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MyScript 自诊断测试</title>
-    <style>
-        body { font-family: -apple-system, sans-serif; padding: 15px; background: #f5f5f5; }
-        #status {
-            padding: 15px; border-radius: 8px; margin-bottom: 15px;
-            background: #333; color: #0f0; font-size: 14px;
-            word-break: break-all; white-space: pre-wrap; line-height: 1.5;
-        }
-        #editor { width: 100%; height: 300px; border: 2px solid #ccc; border-radius: 8px; background: #fff; touch-action: none; }
-        .err { color: #ff6b6b !important; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyScript 多CDN自诊断</title>
+<style>
+  body { font-family: -apple-system, sans-serif; padding: 12px; background: #f5f5f5; margin: 0; }
+  #status {
+    padding: 12px; border-radius: 8px; margin-bottom: 12px;
+    background: #1e1e1e; color: #4ade80; font-size: 13px;
+    word-break: break-all; white-space: pre-wrap; line-height: 1.6;
+    max-height: 45vh; overflow-y: auto;
+  }
+  #status.err { color: #ff6b6b; }
+  #editor { width: 100%; height: 300px; border: 2px solid #ccc; border-radius: 8px; background: #fff; touch-action: none; }
+</style>
 </head>
 <body>
+<div id="status">🔍 准备中...</div>
+<div id="editor"></div>
 
-    <div id="status">🔍 正在检查...</div>
-    <div id="editor"></div>
+<script>
+const statusEl = document.getElementById('status');
+const editorEl = document.getElementById('editor');
+const logs = [];
+function log(msg, isError) {
+  logs.push((isError ? '❌ ' : '') + msg);
+  statusEl.textContent = logs.join('\n');
+  statusEl.classList.toggle('err', !!isError);
+  statusEl.scrollTop = statusEl.scrollHeight;
+}
 
-    <script>
-        const statusEl = document.getElementById('status');
-        const editorEl = document.getElementById('editor');
+window.addEventListener('error', e => log('全局错误: ' + (e.message || e.error), true));
+window.addEventListener('unhandledrejection', e => {
+  const r = e.reason;
+  log('Promise 异常: ' + (r instanceof Error ? r.message : JSON.stringify(r)), true);
+});
 
-        function log(msg, isError = false) {
-            statusEl.textContent = msg;
-            if (isError) statusEl.classList.add('err');
-            else statusEl.classList.remove('err');
+// 备用 CDN 列表：unpkg、国内镜像、jsdelivr
+const CDN_LIST = [
+  'https://unpkg.com/iink-ts@4.1.0/dist/iink.min.js',
+  'https://npm.elemecdn.com/iink-ts@4.1.0/dist/iink.min.js',
+  'https://lib.baomitu.com/iink-ts/4.1.0/iink.min.js',
+  'https://cdn.jsdelivr.net/npm/iink-ts@4.1.0/dist/iink.min.js'
+];
+
+// 附带的网络连通性小测试（仅展示，不阻断）
+async function cdnReachabilityTest() {
+  log('📡 CDN 连通性测试:');
+  for (const url of CDN_LIST) {
+    const host = new URL(url).host;
+    try {
+      const res = await fetch(url, { method: 'HEAD', mode: 'cors' });
+      log(`  ${res.ok ? '✅' : '⚠️'} ${host} → HTTP ${res.status}`);
+    } catch (e) {
+      log(`  ❌ ${host} → ${e.message}`, true);
+    }
+  }
+}
+
+function loadScript(url) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = url;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('脚本加载失败'));
+    document.head.appendChild(s);
+  });
+}
+
+async function loadLibrary() {
+  for (let i = 0; i < CDN_LIST.length; i++) {
+    const url = CDN_LIST[i];
+    const host = new URL(url).host;
+    log(`📥 [${i + 1}/${CDN_LIST.length}] 尝试加载: ${host}`);
+    try {
+      await loadScript(url);
+      if (typeof iink !== 'undefined') {
+        log('✅ 库加载成功！来源: ' + host);
+        return true;
+      }
+      log('⚠️ 脚本执行了但未定义 iink，继续下一个源...', true);
+    } catch (e) {
+      log('❌ ' + e.message + ' (' + host + ')', true);
+    }
+  }
+  return false;
+}
+
+async function initEditor() {
+  try {
+    log('⏳ 正在初始化编辑器...');
+    const editor = new iink.Editor(editorEl, {
+      configuration: {
+        server: {
+          applicationKey: '你的ApplicationKey', // ⚠️ 替换成你的
+          hmacKey: '你的HMACKey'                // ⚠️ 替换成你的
         }
+      }
+    });
+    await editor.initialize();
 
-        // ========== 第一层：捕获全局未处理错误 ==========
-        window.addEventListener('error', function(e) {
-            log('❌ 全局错误: ' + (e.message || e.error) + '\n文件: ' + (e.filename || 'unknown'), true);
-        });
-        window.addEventListener('unhandledrejection', function(e) {
-            const reason = e.reason;
-            const msg = reason instanceof Error ? reason.message : JSON.stringify(reason);
-            log('❌ 未处理的 Promise 异常: ' + msg, true);
-        });
+    if (editor.canvas && editor.canvas.client && editor.canvas.client.initialized) {
+      await editor.canvas.client.initialized.promise;
+    }
+    log('🎉 初始化成功！可以开始手写了。');
 
-        // ========== 第二层：检查库是否加载 ==========
-        function checkLibrary() {
-            if (typeof iink === 'undefined') {
-                log('❌ iink 库没有加载成功。\n可能原因：网络不通、CDN 被屏蔽，或脚本地址写错了。', true);
-                return false;
-            }
-            log('✅ iink 库已加载，正在尝试初始化...');
-            return true;
+    if (editor.canvas && editor.canvas.client && editor.canvas.client.webSocket) {
+      editor.canvas.client.webSocket.addEventListener('close', ev => {
+        if (ev.code !== 1000) {
+          log(`❌ WebSocket 关闭 code=${ev.code} reason=${ev.reason || '无'}`, true);
         }
+      });
+    }
+  } catch (err) {
+    log('❌ 初始化失败: ' + (err && err.message ? err.message : String(err)), true);
+  }
+}
 
-        // ========== 第三层：初始化，并监听 WebSocket 错误 ==========
-        async function init() {
-            // 先等一小会儿，给 CDN 脚本加载留时间
-            await new Promise(r => setTimeout(r, 500));
-
-            if (!checkLibrary()) return;
-
-            try {
-                // 使用文档中更常见的 new Editor + initialize 方式
-                const editor = new iink.Editor(editorEl, {
-                    configuration: {
-                        server: {
-                            applicationKey: '1585ff1f-605f-4aab-8dfa-662cdcb33856', // ⚠️ 替换
-                            hmacKey: '830f624d-8249-4e3d-b9db-a1958cfbaac6'             // ⚠️ 替换
-                        }
-                    }
-                });
-
-                log('⏳ 正在调用 initialize()...');
-
-                await editor.initialize();
-
-                // 关键：等待初始化 Promise 真正 resolve，才能确认连接成功
-                if (editor.canvas && editor.canvas.client && editor.canvas.client.initialized) {
-                    await editor.canvas.client.initialized.promise;
-                }
-
-                log('🎉 初始化成功！可以开始手写了。');
-
-                // 监听底层 WebSocket 的关闭，捕获服务端拒绝的原因
-                // 这部分能拿到 WRONG_CREDENTIALS 等关键错误码
-                if (editor.canvas && editor.canvas.client && editor.canvas.client.webSocket) {
-                    editor.canvas.client.webSocket.addEventListener('close', (event) => {
-                        if (event.code !== 1000) { // 1000 是正常关闭
-                            log('❌ WebSocket 连接被关闭。\n错误码: ' + event.code + '\n原因: ' + (event.reason || '未提供') + '\n\n如果是 1006，通常是网络不通；\n如果是 4001/4003 等，可能是密钥无效（WRONG_CREDENTIALS）。', true);
-                        }
-                    });
-                }
-
-            } catch (error) {
-                const msg = error && error.message ? error.message : String(error);
-                log('❌ 初始化失败 (catch 到异常):\n' + msg + '\n\n建议检查：密钥是否完整、账户免费额度是否耗尽。', true);
-                console.error(error); // 保留一份到控制台，如果之后能看的话
-            }
-        }
-
-        init();
-    </script>
+(async function main() {
+  await cdnReachabilityTest();
+  const ok = await loadLibrary();
+  if (!ok) {
+    log('\n❌ 所有 CDN 都加载失败。\n请用平板浏览器直接打开下面任一链接，全选复制内容，保存为 iink.min.js 放同目录，然后把 <script src="..."> 改成 <script src="./iink.min.js">：\nhttps://unpkg.com/iink-ts@4.1.0/dist/iink.min.js', true);
+    return;
+  }
+  await initEditor();
+})();
+</script>
 </body>
 </html>

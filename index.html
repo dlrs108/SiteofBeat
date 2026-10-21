@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MyScript 4.1.0 Demo 1</title>
+<title>MyScript 4.1.0 Demo 1.0</title>
 <link rel="stylesheet" href="https://unpkg.com/iink-ts@4.1.0/dist/iink.min.css">
 <style>
   body { font-family: -apple-system, sans-serif; padding: 12px; background: #f5f5f5; margin: 0; }
@@ -115,21 +115,16 @@ async function initEditor() {
     
     log(`⏳ 正在初始化编辑器 (类型: ${currentType})...`);
 
-    // 构建配置：针对 Text 类型，强制要求返回 text/plain
+    // 配置：直接接收默认的 JIIX 格式数据
     const recognitionConfig = {
       type: currentType, // Text, Math, Drawing
     };
-    if (currentType === 'Text') {
-      recognitionConfig.text = {
-        mimeTypes: ["text/plain"] // 关键：告诉服务器我们只要纯文本
-      };
-    }
 
     canvas = await iink.Canvas.load(editorEl, "INTERACTIVE_INK", {
       configuration: {
         server: {
-          applicationKey: '1585ff1f-605f-4aab-8dfa-662cdcb33856',
-          hmacKey: '830f624d-8249-4e3d-b9db-a1958cfbaac6'
+          applicationKey: '1585ff1f-605f-4aab-8dfa-662cdcb33856', // ⚠️ 替换
+          hmacKey: '830f624d-8249-4e3d-b9db-a1958cfbaac6'             // ⚠️ 替换
         },
         recognition: recognitionConfig
       }
@@ -139,36 +134,34 @@ async function initEditor() {
 
     // 监听 exported 事件
     canvas.event.addEventListener("exported", (event) => {
-      log('📤 收到 exported 事件，开始调试数据...');
+      // 核心：从 JIIX 格式中提取数据
+      const jiixData = event.detail?.["application/vnd.myscript.jiix"];
       
-      // 🔍 调试步骤：先把完整的数据结构打印出来看看
-      try {
-        const detailStr = JSON.stringify(event.detail, null, 2);
-        log('🔍 [调试] event.detail 完整结构:\n' + detailStr);
-      } catch (e) {
-        log('🔍 [调试] 无法序列化 event.detail，可能是循环引用。', true);
-      }
+      if (jiixData && jiixData.elements) {
+        let extractedText = [];
+        
+        // 遍历所有识别出的元素（可能会有多行文本或多个公式）
+        jiixData.elements.forEach(element => {
+          if (element.label) {
+            extractedText.push(element.label);
+          } else if (element.words) {
+            // 如果 element 没有直接给 label，尝试从 words 里拼装
+            const wordsText = element.words.map(w => w.label).join('');
+            extractedText.push(wordsText);
+          }
+        });
 
-      // 尝试多种可能的路径提取 text/plain
-      const possiblePaths = [
-        event.detail?.rawResult?.exports?.["text/plain"],
-        event.detail?.exports?.["text/plain"],
-        event.detail?.["text/plain"]
-      ];
-
-      let result = null;
-      for (const path of possiblePaths) {
-        if (path) {
-          result = path;
-          break;
+        const finalResult = extractedText.join('\n');
+        
+        if (finalResult.trim()) {
+          resultContent.textContent = finalResult;
+          log('✅ 识别结果已更新:\n' + finalResult);
+        } else {
+          resultContent.textContent = '（未识别到内容）';
+          log('⚠️ JIIX 数据存在，但未找到标签文字。', true);
         }
-      }
-
-      if (result) {
-        resultContent.textContent = result;
-        log('✅ 识别结果已更新: ' + result);
       } else {
-        log('❌ 所有已知路径都未找到 text/plain。请查看上方 [调试] 输出的数据结构。', true);
+        log('⚠️ 收到的不是标准的 JIIX 格式，未找到 elements。', true);
       }
     });
 
@@ -184,6 +177,7 @@ async function initEditor() {
     log('❌ 初始化失败: ' + msg, true);
   }
 }
+  
 (async function main() {
   const ok = await loadLibrary();
   if (!ok) {

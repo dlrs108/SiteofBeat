@@ -120,6 +120,29 @@
             await initEditor(); 
         };
 
+        // 自动测试后端接口
+async function testBackend() {
+    log('🧪 正在测试后端接口 /api/hmac ...');
+    try {
+        const res = await fetch('/api/hmac', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ challenge: 'test_challenge' })
+        });
+        
+        const text = await res.text();
+        if (text.trim().startsWith('<!DOCTYPE html>')) {
+            log('❌ 后端未生效！Cloudflare 返回了 HTML 页面（可能是路径错误或没部署）。', true);
+        } else {
+            log('✅ 后端返回状态: ' + res.status + '\n内容: ' + text);
+        }
+    } catch (e) {
+        log('❌ 请求后端失败: ' + e.message, true);
+    }
+}
+// 页面加载时执行
+testBackend();
+
         async function initEditor() {
             try {
                 if (canvas) {

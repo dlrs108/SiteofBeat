@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MyScript 4.1.0 Demo 1.0.1</title>
+    <title>MyScript 4.1.0 Demo 1.0</title>
     
     <link rel="stylesheet" href="https://unpkg.com/iink-ts@4.1.0/dist/iink.min.css">
     
@@ -38,9 +38,6 @@
     </div>
 
     <script>
-        // =========================================================
-        // 1. 安全版 Polyfill (用 Proxy 代理，不强行修改原对象，防止卡死)
-        // =========================================================
         try {
             const originalValues = Set.prototype.values;
             Set.prototype.values = function() {
@@ -48,21 +45,16 @@
                 if (typeof iterator.toArray === 'function') return iterator;
                 return new Proxy(iterator, {
                     get(target, prop) {
-                        if (prop === 'toArray') {
-                            return () => Array.from(target);
-                        }
+                        if (prop === 'toArray') return () => Array.from(target);
                         const val = target[prop];
                         return typeof val === 'function' ? val.bind(target) : val;
                     }
                 });
             };
         } catch (e) {
-            console.warn('Polyfill 注入失败，但不影响后续运行', e);
+            console.warn('Polyfill 注入失败', e);
         }
 
-        // =========================================================
-        // 2. 基础变量与日志工具
-        // =========================================================
         const statusEl = document.getElementById('status');
         const editorEl = document.getElementById('editor');
         const resultContent = document.getElementById('result-content');
@@ -83,9 +75,6 @@
             log('Promise 异常: ' + (r instanceof Error ? r.message : JSON.stringify(r)), true);
         });
 
-        // =========================================================
-        // 3. 动态加载库
-        // =========================================================
         const CDN_LIST = [
             'https://unpkg.com/iink-ts@4.1.0/dist/iink.min.js',
             'https://cdn.jsdelivr.net/npm/iink-ts@4.1.0/dist/iink.min.js'
@@ -112,7 +101,6 @@
                         log('✅ 库加载成功！来源: ' + host);
                         return true;
                     }
-                    log('⚠️ 脚本执行了但未定义 iink，继续下一个源...', true);
                 } catch (e) {
                     log('❌ ' + e.message + ' (' + host + ')', true);
                 }
@@ -120,9 +108,6 @@
             return false;
         }
 
-        // =========================================================
-        // 4. 核心业务逻辑
-        // =========================================================
         let currentType = 'Text';
         let canvas = null;
 
@@ -131,12 +116,10 @@
             document.querySelectorAll('#toolbar button').forEach(btn => btn.classList.remove('active'));
             const btn = document.getElementById(`btn-${type.toLowerCase()}`);
             if (btn) btn.classList.add('active');
-            
             log(`🔄 切换识别类型: ${type}，正在重新初始化...`);
             await initEditor(); 
         };
 
-        // ⚠️ 注意这里：必须保留 async
         async function initEditor() {
             try {
                 if (canvas) {
@@ -149,10 +132,8 @@
                 canvas = await iink.Canvas.load(editorEl, "INTERACTIVE_INK", {
                     configuration: {
                         server: {
-                            // applicationKey 可以放在前端（它只是个应用标识）
                             applicationKey: '1585ff1f-605f-4aab-8dfa-662cdcb33856',
-                            
-                            // 🚨 hmacKey 已被删除，替换为自定义的代理函数
+                            hmacKey: 'placeholder', // 骗过库的校验
                             hmac: async (challenge) => {
                                 log('🔑 正在请求后端计算 HMAC 签名...');
                                 try {
@@ -168,13 +149,12 @@
                                     
                                     const data = await response.json();
                                     log('✅ 签名获取成功');
-                                    return data.hmac; // 返回给 iinkTS
+                                    return data.hmac;
                                 } catch (err) {
                                     log('❌ 获取签名失败: ' + err.message, true);
-                                    throw err; // 抛出错误让编辑器停止
+                                    throw err;
                                 }
                             },
-                            
                             websocket: {
                                 autoReconnect: true,
                                 maxRetryCount: 10,
@@ -192,15 +172,13 @@
 
                 canvas.event.addEventListener("exported", (event) => {
                     const jiixData = event.detail?.["application/vnd.myscript.jiix"];
-                    
                     if (jiixData && jiixData.elements) {
                         let extractedText = [];
                         jiixData.elements.forEach(element => {
                             if (element.label) {
                                 extractedText.push(element.label);
                             } else if (element.words) {
-                                const wordsText = element.words.map(w => w.label).join('');
-                                extractedText.push(wordsText);
+                                extractedText.push(element.words.map(w => w.label).join(''));
                             }
                         });
 
@@ -212,19 +190,16 @@
                             resultContent.textContent = '（未识别到内容）';
                             log('⚠️ JIIX 数据存在，但未找到标签文字。', true);
                         }
-                    } else {
-                        log('⚠️ 收到的不是标准的 JIIX 格式，未找到 elements。', true);
                     }
                 });
 
                 if (canvas?.canvas?.client?.webSocket) {
                     canvas.canvas.client.webSocket.addEventListener('close', ev => {
                         if (ev.code !== 1000) {
-                            log(`❌ WebSocket 关闭 code=${ev.code} reason=${ev.reason || '无'}`, true);
+                            log(`❌ WebSocket 关闭 code=${ev.code}`, true);
                             if (ev.code === 1006 || ev.code === 1001) {
                                 log('🔄 检测到异常断开，5秒后尝试重新初始化...', true);
                                 setTimeout(() => {
-                                    log('🔄 正在执行重连...');
                                     initEditor();
                                 }, 5000);
                             }
@@ -247,7 +222,7 @@
             await initEditor();
         })();
     </script>
-
+    
     <script src="https://trtc.io/knocket-sdk/sdk.js?identifier=a014f4b80c9e932cd3&v=1792628861818" async></script>
 </body>
 </html>

@@ -158,26 +158,28 @@ testBackend();
                             applicationKey: '1585ff1f-605f-4aab-8dfa-662cdcb33856',
                             hmacKey: 'placeholder', // 骗过库的校验
                             hmac: async (challenge) => {
-                                log('🔑 正在请求后端计算 HMAC 签名...');
-                                try {
-                                    const response = await fetch('/api/hmac', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ challenge })
-                                    });
-                                    
-                                    if (!response.ok) {
-                                        throw new Error(`后端接口报错: ${response.status}`);
-                                    }
-                                    
-                                    const data = await response.json();
-                                    log('✅ 签名获取成功');
-                                    return data.hmac;
-                                } catch (err) {
-                                    log('❌ 获取签名失败: ' + err.message, true);
-                                    throw err;
-                                }
-                            },
+    log('🔑 正在请求后端计算 HMAC 签名...');
+    try {
+        const response = await fetch('/api/hmac', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ challenge })
+        });
+        
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`后端报错: ${response.status} - ${errText}`);
+        }
+        
+        const data = await response.json();
+        // 👇 强行把后端算出来的签名打印在屏幕上，只取前20位看看格式
+        log(`✅ 签名获取成功，前缀: ${data.hmac.substring(0, 20)}...`);
+        return data.hmac;
+    } catch (err) {
+        log('❌ 获取签名失败: ' + err.message, true);
+        throw err;
+    }
+}
                             websocket: {
                                 autoReconnect: true,
                                 maxRetryCount: 10,

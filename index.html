@@ -45,10 +45,7 @@
             const originalValues = Set.prototype.values;
             Set.prototype.values = function() {
                 const iterator = originalValues.call(this);
-                // 如果已经有 toArray，直接返回
                 if (typeof iterator.toArray === 'function') return iterator;
-                
-                // 使用 Proxy 拦截 toArray 方法的调用，兼容苹果系统
                 return new Proxy(iterator, {
                     get(target, prop) {
                         if (prop === 'toArray') {
@@ -78,7 +75,6 @@
             statusEl.scrollTop = statusEl.scrollHeight;
         }
 
-        // 先输出一句，证明 JS 没卡死
         log('🏁 脚本开始执行，环境检查完毕。');
 
         window.addEventListener('error', e => log('全局错误: ' + (e.message || e.error), true));
@@ -140,6 +136,7 @@
             await initEditor(); 
         };
 
+        // ⚠️ 注意这里：必须保留 async
         async function initEditor() {
             try {
                 if (canvas) {
@@ -152,8 +149,32 @@
                 canvas = await iink.Canvas.load(editorEl, "INTERACTIVE_INK", {
                     configuration: {
                         server: {
+                            // applicationKey 可以放在前端（它只是个应用标识）
                             applicationKey: '1585ff1f-605f-4aab-8dfa-662cdcb33856',
-                            hmacKey: '830f624d-8249-4e3d-b9db-a1958cfbaac6',
+                            
+                            // 🚨 hmacKey 已被删除，替换为自定义的代理函数
+                            hmac: async (challenge) => {
+                                log('🔑 正在请求后端计算 HMAC 签名...');
+                                try {
+                                    const response = await fetch('/api/hmac', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ challenge })
+                                    });
+                                    
+                                    if (!response.ok) {
+                                        throw new Error(`后端接口报错: ${response.status}`);
+                                    }
+                                    
+                                    const data = await response.json();
+                                    log('✅ 签名获取成功');
+                                    return data.hmac; // 返回给 iinkTS
+                                } catch (err) {
+                                    log('❌ 获取签名失败: ' + err.message, true);
+                                    throw err; // 抛出错误让编辑器停止
+                                }
+                            },
+                            
                             websocket: {
                                 autoReconnect: true,
                                 maxRetryCount: 10,

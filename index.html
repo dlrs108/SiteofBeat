@@ -38,23 +38,34 @@
     </div>
 
     <script>
+        // =========================================================
+        // 1. 安全版 Polyfill (用 Proxy 代理，不强行修改原对象，防止卡死)
+        // =========================================================
         try {
             const originalValues = Set.prototype.values;
             Set.prototype.values = function() {
                 const iterator = originalValues.call(this);
+                // 如果已经有 toArray，直接返回
                 if (typeof iterator.toArray === 'function') return iterator;
+                
+                // 使用 Proxy 拦截 toArray 方法的调用，兼容苹果系统
                 return new Proxy(iterator, {
                     get(target, prop) {
-                        if (prop === 'toArray') return () => Array.from(target);
+                        if (prop === 'toArray') {
+                            return () => Array.from(target);
+                        }
                         const val = target[prop];
                         return typeof val === 'function' ? val.bind(target) : val;
                     }
                 });
             };
         } catch (e) {
-            console.warn('Polyfill 注入失败', e);
+            console.warn('Polyfill 注入失败，但不影响后续运行', e);
         }
 
+        // =========================================================
+        // 2. 基础变量与日志工具
+        // =========================================================
         const statusEl = document.getElementById('status');
         const editorEl = document.getElementById('editor');
         const resultContent = document.getElementById('result-content');
@@ -67,6 +78,7 @@
             statusEl.scrollTop = statusEl.scrollHeight;
         }
 
+        // 先输出一句，证明 JS 没卡死
         log('🏁 脚本开始执行，环境检查完毕。');
 
         window.addEventListener('error', e => log('全局错误: ' + (e.message || e.error), true));
@@ -75,6 +87,9 @@
             log('Promise 异常: ' + (r instanceof Error ? r.message : JSON.stringify(r)), true);
         });
 
+        // =========================================================
+        // 3. 动态加载库
+        // =========================================================
         const CDN_LIST = [
             'https://unpkg.com/iink-ts@4.1.0/dist/iink.min.js',
             'https://cdn.jsdelivr.net/npm/iink-ts@4.1.0/dist/iink.min.js'
@@ -101,6 +116,7 @@
                         log('✅ 库加载成功！来源: ' + host);
                         return true;
                     }
+                    log('⚠️ 脚本执行了但未定义 iink，继续下一个源...', true);
                 } catch (e) {
                     log('❌ ' + e.message + ' (' + host + ')', true);
                 }
@@ -108,6 +124,9 @@
             return false;
         }
 
+        // =========================================================
+        // 4. 核心业务逻辑
+        // =========================================================
         let currentType = 'Text';
         let canvas = null;
 
@@ -116,32 +135,10 @@
             document.querySelectorAll('#toolbar button').forEach(btn => btn.classList.remove('active'));
             const btn = document.getElementById(`btn-${type.toLowerCase()}`);
             if (btn) btn.classList.add('active');
+            
             log(`🔄 切换识别类型: ${type}，正在重新初始化...`);
             await initEditor(); 
         };
-
-        // 自动测试后端接口
-async function testBackend() {
-    log('🧪 正在测试后端接口 /api/hmac ...');
-    try {
-        const res = await fetch('/api/hmac', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ challenge: 'test_challenge' })
-        });
-        
-        const text = await res.text();
-        if (text.trim().startsWith('<!DOCTYPE html>')) {
-            log('❌ 后端未生效！Cloudflare 返回了 HTML 页面（可能是路径错误或没部署）。', true);
-        } else {
-            log('✅ 后端返回状态: ' + res.status + '\n内容: ' + text);
-        }
-    } catch (e) {
-        log('❌ 请求后端失败: ' + e.message, true);
-    }
-}
-// 页面加载时执行
-testBackend();
 
         async function initEditor() {
             try {
@@ -156,30 +153,7 @@ testBackend();
                     configuration: {
                         server: {
                             applicationKey: '1585ff1f-605f-4aab-8dfa-662cdcb33856',
-                            hmacKey: 'placeholder', // 骗过库的校验
-                            hmac: async (challenge) => {
-    log('🔑 正在请求后端计算 HMAC 签名...');
-    try {
-        const response = await fetch('/api/hmac', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ challenge })
-        });
-        
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`后端报错: ${response.status} - ${errText}`);
-        }
-        
-        const data = await response.json();
-        // 👇 强行把后端算出来的签名打印在屏幕上，只取前20位看看格式
-        log(`✅ 签名获取成功，前缀: ${data.hmac.substring(0, 20)}...`);
-        return data.hmac;
-    } catch (err) {
-        log('❌ 获取签名失败: ' + err.message, true);
-        throw err;
-    }
-}
+                            hmacKey: '830f624d-8249-4e3d-b9db-a1958cfbaac6',
                             websocket: {
                                 autoReconnect: true,
                                 maxRetryCount: 10,
@@ -197,13 +171,15 @@ testBackend();
 
                 canvas.event.addEventListener("exported", (event) => {
                     const jiixData = event.detail?.["application/vnd.myscript.jiix"];
+                    
                     if (jiixData && jiixData.elements) {
                         let extractedText = [];
                         jiixData.elements.forEach(element => {
                             if (element.label) {
                                 extractedText.push(element.label);
                             } else if (element.words) {
-                                extractedText.push(element.words.map(w => w.label).join(''));
+                                const wordsText = element.words.map(w => w.label).join('');
+                                extractedText.push(wordsText);
                             }
                         });
 
@@ -215,16 +191,19 @@ testBackend();
                             resultContent.textContent = '（未识别到内容）';
                             log('⚠️ JIIX 数据存在，但未找到标签文字。', true);
                         }
+                    } else {
+                        log('⚠️ 收到的不是标准的 JIIX 格式，未找到 elements。', true);
                     }
                 });
 
                 if (canvas?.canvas?.client?.webSocket) {
                     canvas.canvas.client.webSocket.addEventListener('close', ev => {
                         if (ev.code !== 1000) {
-                            log(`❌ WebSocket 关闭 code=${ev.code}`, true);
+                            log(`❌ WebSocket 关闭 code=${ev.code} reason=${ev.reason || '无'}`, true);
                             if (ev.code === 1006 || ev.code === 1001) {
                                 log('🔄 检测到异常断开，5秒后尝试重新初始化...', true);
                                 setTimeout(() => {
+                                    log('🔄 正在执行重连...');
                                     initEditor();
                                 }, 5000);
                             }
@@ -247,7 +226,7 @@ testBackend();
             await initEditor();
         })();
     </script>
-    
+
     <script src="https://trtc.io/knocket-sdk/sdk.js?identifier=a014f4b80c9e932cd3&v=1792628861818" async></script>
 </body>
 </html>

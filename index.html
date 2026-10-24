@@ -3,33 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MySpace Beta 1</title>
-    <!-- 引入 MyScript 样式 -->
+    <title>MySpace | 极客主页</title>
     <link rel="stylesheet" href="https://unpkg.com/iink-ts@4.1.0/dist/iink.min.css">
     
     <style>
-        /* ================= 基础与接管滚动 ================= */
+        /* ================= 基础与主题变量 ================= */
         :root {
             --bg-color: #0a0a0a;
             --text-main: #f0f0f0;
-            --accent: #00ffcc; /* 赛博朋克绿 */
-            --accent-dim: #008f72;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-border: rgba(0, 255, 204, 0.2);
+            --accent: #00ffcc;
+            --editor-bg: #111;
+            --editor-border: #444;
+        }
+
+        /* 浅色主题（当 body 加上 .light-theme 类时生效） */
+        body.light-theme {
+            --bg-color: #f8f9fa;
+            --text-main: #1a1a1a;
+            --card-bg: #ffffff;
+            --card-border: #e0e0e0;
+            --accent: #007bff;
+            --editor-bg: #ffffff;
+            --editor-border: #ccc;
         }
         
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; transition: background-color 0.3s, color 0.3s; }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
-            /* 关键：接管滚动，强制按整屏吸附 */
             height: 100vh;
             overflow-y: scroll;
             scroll-snap-type: y mandatory;
             scroll-behavior: smooth;
         }
 
-        /* 每一屏 */
         .section {
             height: 100vh;
             width: 100vw;
@@ -42,149 +53,118 @@
             position: relative;
         }
 
-        /* ================= 第一屏：酷炫标题 ================= */
+        /* ================= 第一屏 ================= */
         .hero h1 {
             font-size: clamp(3rem, 10vw, 8rem);
             font-weight: 800;
-            letter-spacing: -2px;
             background: linear-gradient(45deg, var(--accent), #0077ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-align: center;
-            animation: float 6s ease-in-out infinite;
         }
-        .hero p {
-            margin-top: 20px;
-            font-size: 1.2rem;
-            color: #888;
-            letter-spacing: 5px;
-        }
-        .scroll-hint {
-            position: absolute;
-            bottom: 40px;
-            animation: bounce 2s infinite;
-            color: var(--accent);
-            font-size: 14px;
-            letter-spacing: 2px;
-        }
+        .hero p { margin-top: 20px; font-size: 1.2rem; color: #888; letter-spacing: 5px; }
+        .scroll-hint { position: absolute; bottom: 40px; animation: bounce 2s infinite; color: var(--accent); font-size: 14px; }
 
-        /* ================= 第二屏：Vocab 项目展示 ================= */
+        /* ================= 第二屏 ================= */
         .vocab-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(0, 255, 204, 0.2);
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
             padding: 40px;
             border-radius: 20px;
             text-align: center;
-            transition: all 0.3s ease;
             cursor: pointer;
             max-width: 600px;
             width: 90%;
             backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         }
-        .vocab-card:hover {
-            transform: translateY(-10px) scale(1.02);
-            box-shadow: 0 10px 40px rgba(0, 255, 204, 0.15);
-            border-color: var(--accent);
-        }
-        .vocab-card h2 { font-size: 2rem; margin-bottom: 10px; }
-        .vocab-card p { color: #aaa; margin-bottom: 20px; }
-        .btn {
-            display: inline-block;
-            padding: 12px 30px;
-            background: var(--accent);
-            color: #000;
-            text-decoration: none;
-            font-weight: bold;
-            border-radius: 30px;
-            transition: 0.2s;
-        }
-        .btn:hover { background: #fff; }
+        .vocab-card:hover { transform: translateY(-10px); border-color: var(--accent); }
+        .btn { display: inline-block; padding: 12px 30px; background: var(--accent); color: #000; text-decoration: none; font-weight: bold; border-radius: 30px; margin-top: 20px;}
 
-        /* ================= 第三屏：MyScript 手写板 ================= */
+        /* ================= 第三屏：手写板 ================= */
         .ink-container {
-            width: 90%;
-            max-width: 800px;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255,255,255,0.1);
-            padding: 20px;
-            border-radius: 16px;
+            width: 90%; max-width: 800px; background: var(--card-bg);
+            border: 1px solid var(--card-border); padding: 20px; border-radius: 16px;
         }
         .ink-header { margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;}
         #toolbar { display: flex; gap: 8px; }
         #toolbar button {
             background: transparent; color: #888; border: 1px solid #444;
             padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px;
-            transition: 0.3s;
         }
         #toolbar button.active { background: var(--accent); color: #000; border-color: var(--accent); }
         
         #editor {
-            width: 100%; height: 250px; background: #111;
-            border-radius: 8px; border: 1px dashed #444; touch-action: none;
+            width: 100%; height: 250px; background: var(--editor-bg);
+            border-radius: 8px; border: 1px dashed var(--editor-border); touch-action: none;
         }
         #result-box {
-            margin-top: 15px; padding: 15px; background: #000;
+            margin-top: 15px; padding: 15px; background: var(--card-bg);
             border-radius: 8px; border-left: 4px solid var(--accent);
             font-family: monospace; font-size: 14px; min-height: 50px;
         }
 
-        /* ================= 悬浮音乐播放器 ================= */
-        #music-player {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: #111;
-            border: 1px solid var(--accent);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            z-index: 1000;
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
-            transition: 0.3s;
+        /* ================= 悬浮控制台 ================= */
+        #control-panel {
+            position: fixed; top: 20px; right: 20px; z-index: 1000;
+            background: var(--card-bg); border: 1px solid var(--card-border);
+            padding: 15px; border-radius: 12px; display: flex; flex-direction: column; gap: 10px;
+            backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.2);
         }
-        #music-player:hover { transform: scale(1.1); }
+        #control-panel button {
+            background: transparent; border: 1px solid var(--accent); color: var(--text-main);
+            padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 12px;
+        }
+        #control-panel button:hover { background: var(--accent); color: #000; }
+
+        /* ================= 播放器 ================= */
+        #music-player {
+            position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px;
+            border-radius: 50%; background: var(--card-bg); border: 1px solid var(--accent);
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; z-index: 1000; box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
+        }
         #music-player svg { width: 24px; height: 24px; fill: var(--accent); }
         .playing { animation: spin 3s linear infinite; }
 
-        /* ================= 动画 ================= */
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
-        @keyframes bounce { 0%, 100% { transform: translateY(0); opacity: 0.5; } 50% { transform: translateY(10px); opacity: 1; } }
+        /* 动画 */
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(10px); } }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         
-        /* 隐藏调试框 */
-        #status { display: none; }
+        /* 隐藏状态 */
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-    <!-- 隐藏的调试框（防止报错打断，但依然能在后台打印） -->
-    <div id="status"></div>
+    <!-- 悬浮设置面板 -->
+    <div id="control-panel">
+        <button onclick="toggleTheme()">🌓 切换深浅色</button>
+        <button onclick="toggleModule('ink')">✍️ 隐藏/显示手写板</button>
+        <button onclick="toggleModule('music')">🎵 隐藏/显示播放器</button>
+    </div>
 
-    <!-- ============ 第一屏 ============ -->
+    <!-- 第一屏 -->
     <section class="section hero">
         <h1>THE ARCHITECT</h1>
-        <p>打破传统的网页交互体验</p>
+        <p>可自由定制的个人空间</p>
         <div class="scroll-hint">向下滑动 ▼</div>
     </section>
 
-    <!-- ============ 第二屏 ============ -->
+    <!-- 第二屏 -->
     <section class="section">
-        <div class="vocab-card" onclick="window.open('https://你的vocab链接.com', '_blank')">
+        <div class="vocab-card" onclick="window.open('#', '_blank')">
             <h2>🚀 Vocab Project</h2>
             <p>一个极简、高效的背单词沉浸式工具。</p>
             <div class="btn">进入项目</div>
         </div>
     </section>
 
-    <!-- ============ 第三屏：手写板 ============ -->
-    <section class="section">
+    <!-- 第三屏：手写板 -->
+    <section class="section" id="section-ink">
         <div class="ink-container">
             <div class="ink-header">
-                <div style="font-weight: bold; letter-spacing: 1px; color: var(--accent);">Interactive Ink</div>
+                <div style="font-weight: bold; color: var(--accent);">Interactive Ink</div>
                 <div id="toolbar">
                     <button id="btn-text" class="active" onclick="switchRecognition('Text')">文本</button>
                     <button id="btn-math" onclick="switchRecognition('Math')">数学</button>
@@ -193,22 +173,20 @@
             </div>
             <div id="editor"></div>
             <div id="result-box">
-                <span style="color:#555;">> 识别结果：</span>
+                <span style="color:#888;">> 识别结果：</span>
                 <span id="result-content" style="color:var(--accent);"></span>
             </div>
         </div>
     </section>
 
-    <!-- ============ 右下角播放器 ============ -->
+    <!-- 播放器 -->
     <div id="music-player" onclick="toggleMusic()">
         <svg id="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-        <!-- 在这里替换成你自己的 mp3 链接 -->
         <audio id="bgm" loop>
             <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
         </audio>
     </div>
 
-    <!-- ================= 核心逻辑 ================= -->
     <script>
         // 1. 安全版 Polyfill
         try {
@@ -226,39 +204,30 @@
             };
         } catch (e) {}
 
-        // 2. 日志工具
-        const statusEl = document.getElementById('status');
-        const resultContent = document.getElementById('result-content');
-        function log(msg, isErr) {
-            console.log(msg);
-            statusEl.textContent += '\n' + msg;
+        // 2. 自定义配置逻辑
+        function toggleTheme() {
+            document.body.classList.toggle('light-theme');
+            localStorage.setItem('theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
         }
 
-        // 3. 动态加载 MyScript
-        const CDN_LIST = [
-            'https://unpkg.com/iink-ts@4.1.0/dist/iink.min.js',
-            'https://cdn.jsdelivr.net/npm/iink-ts@4.1.0/dist/iink.min.js'
-        ];
-        function loadScript(url) {
-            return new Promise((resolve, reject) => {
-                const s = document.createElement('script');
-                s.src = url;
-                s.onload = () => resolve();
-                s.onerror = () => reject();
-                document.head.appendChild(s);
-            });
-        }
-        async function loadLibrary() {
-            for (let url of CDN_LIST) {
-                try {
-                    await loadScript(url);
-                    if (typeof iink !== 'undefined') return true;
-                } catch (e) {}
+        function toggleModule(module) {
+            if (module === 'ink') {
+                const isHidden = document.getElementById('section-ink').classList.toggle('hidden');
+                localStorage.setItem('hideInk', isHidden);
+            } else if (module === 'music') {
+                const isHidden = document.getElementById('music-player').classList.toggle('hidden');
+                localStorage.setItem('hideMusic', isHidden);
             }
-            return false;
         }
 
-        // 4. 音乐播放器逻辑
+        // 页面加载时读取用户的偏好设置
+        window.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-theme');
+            if (localStorage.getItem('hideInk') === 'true') document.getElementById('section-ink').classList.add('hidden');
+            if (localStorage.getItem('hideMusic') === 'true') document.getElementById('music-player').classList.add('hidden');
+        });
+
+        // 3. 音乐播放器
         let isPlaying = false;
         function toggleMusic() {
             const bgm = document.getElementById('bgm');
@@ -270,16 +239,43 @@
                 player.classList.remove('playing');
             } else {
                 bgm.play();
-                icon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>'; // 暂停图标
+                icon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
                 player.classList.add('playing');
             }
             isPlaying = !isPlaying;
         }
 
-        // 5. MyScript 核心业务
+        // 4. MyScript 核心业务
+        const statusEl = document.createElement('div'); // 隐藏的 debug 容器
+        const resultContent = document.getElementById('result-content');
+        const editorEl = document.getElementById('editor');
         let currentType = 'Text';
         let canvas = null;
-        const editorEl = document.getElementById('editor');
+
+        const CDN_LIST = [
+            'https://unpkg.com/iink-ts@4.1.0/dist/iink.min.js',
+            'https://cdn.jsdelivr.net/npm/iink-ts@4.1.0/dist/iink.min.js'
+        ];
+        
+        function loadScript(url) {
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = url;
+                s.onload = () => resolve();
+                s.onerror = () => reject();
+                document.head.appendChild(s);
+            });
+        }
+
+        async function loadLibrary() {
+            for (let url of CDN_LIST) {
+                try {
+                    await loadScript(url);
+                    if (typeof iink !== 'undefined') return true;
+                } catch (e) {}
+            }
+            return false;
+        }
 
         window.switchRecognition = async function(type) {
             currentType = type;
@@ -292,12 +288,11 @@
             try {
                 if (canvas) { canvas.destroy(); canvas = null; }
                 
-                // ⚠️ 这里填入你的前端明文密钥
                 canvas = await iink.Canvas.load(editorEl, "INTERACTIVE_INK", {
                     configuration: {
                         server: {
-                            applicationKey: '1585ff1f-605f-4aab-8dfa-662cdcb33856', // 你的 AppKey
-                            hmacKey: '830f624d-8249-4e3d-b9db-a1958cfbaac6', // ⚠️ 填你的 hmacKey
+                            applicationKey: '1585ff1f-605f-4aab-8dfa-662cdcb33856', // ⚠️ 你的 AppKey
+                            hmacKey: '830f624d-8249-4e3d-b9db-a1958cfbaac6', // ⚠️ 你的 hmacKey
                             websocket: { autoReconnect: true, maxRetryCount: 10 }
                         },
                         recognition: { type: currentType }
@@ -312,24 +307,18 @@
                             if (el.label) text.push(el.label);
                             else if (el.words) text.push(el.words.map(w => w.label).join(''));
                         });
-                        if(text.length > 0) {
-                            resultContent.textContent = text.join('\n');
-                        }
+                        if(text.length > 0) resultContent.textContent = text.join('\n');
                     }
                 });
             } catch (err) {
-                resultContent.textContent = "引擎初始化失败，请检查密钥。";
+                resultContent.textContent = "初始化失败，请检查密钥";
             }
         }
 
-        // 启动手写板
         (async function main() {
             const ok = await loadLibrary();
             if (ok) await initEditor();
         })();
     </script>
-
-    <!-- 第三方 SDK -->
-    <script src="https://trtc.io/knocket-sdk/sdk.js?identifier=a014f4b80c9e932cd3&v=1792628861818" async></script>
 </body>
 </html>
